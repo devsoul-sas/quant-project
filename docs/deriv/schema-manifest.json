@@ -1,0 +1,23 @@
+{
+  "schema": "devsoul-quant.deriv-schema-manifest.v1",
+  "captured_at": "2026-09-29T01:52:16Z",
+  "repository": "https://github.com/deriv-com/deriv-api-schemas",
+  "release": {
+    "tag": "production_v20260901_0",
+    "published_at": "2026-09-07T07:41:36Z",
+    "html_url": "https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260901_0"
+  },
+  "asset": {
+    "name": "schemas.zip",
+    "url": "https://github.com/deriv-com/deriv-api-schemas/releases/download/production_v20260901_0/schemas.zip",
+    "sha256": "adaab0acaf33bd159e45912995af2b78101049f43683d223f0ac11be0a39e7c3",
+    "bytes": 139891,
+    "extracted_file_count": 127,
+    "local_path": "artifacts/vendor/deriv/schemas-production_v20260901_0.zip"
+  },
+  "market_data_evidence": {
+    "retained": false,
+    "reason": "Deleted within 24 hours after reviewing Deriv API Users Terms 2.1-2.4",
+    "policy": "docs/deriv/api-storage-blocker.md"
+  }
+}

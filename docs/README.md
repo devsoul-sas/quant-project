@@ -1,0 +1,43 @@
+# DevSoul Quant — documentación de Gate 0
+
+## Estado crítico
+
+El Gate 0 está **bloqueado para almacenamiento persistente de datos Deriv** por los API Users Terms 2.1–2.4. Véase:
+
+- [Estado del Gate 0](scope/gate-0-status.md)
+- [Bloqueo de almacenamiento](deriv/api-storage-blocker.md)
+- [ADR-005](adr/ADR-005-deriv-data-retention-blocker.md)
+
+## Alcance y plan
+
+- [Alcance MVP corregido](scope/mvp-in-out.md)
+- [Plan maestro](../.hermes/plans/2026-09-28_202135-devsoul-quant-mvp.md)
+
+## Decisiones de arquitectura
+
+- [ADR-001: local-first modular monolith](adr/ADR-001-local-first-modular-monolith.md)
+- [ADR-002: replay-first](adr/ADR-002-replay-first-execution-core.md)
+- [ADR-003: demo-only](adr/ADR-003-demo-only-safety-boundary.md)
+- [ADR-004: contract intent](adr/ADR-004-contract-intent-semantics.md)
+- [ADR-005: bloqueo de retención](adr/ADR-005-deriv-data-retention-blocker.md)
+
+## Deriv
+
+- [API actual](deriv/current-api.md)
+- [Manifest de schemas](deriv/schema-manifest.json)
+- [Bloqueo de almacenamiento](deriv/api-storage-blocker.md)
+
+## Investigación
+
+- [Plantilla de protocolo](research/validation-protocol-template.md)
+
+## Datos y legal
+
+- [Política provisional de datos](data/provider-data-policy.md)
+- [Checklist jurídico/contractual](legal/early-gate-checklist.md)
+- [Registro de fuentes legales](legal/source-register.json)
+- [Borrador de solicitud a Deriv](legal/deriv-data-permission-request.md)
+
+## Datos locales
+
+No se conserva market data Deriv. Los payloads públicos temporales usados para la comprobación fueron eliminados antes de 24 horas. El único artefacto vendor retenido es el bundle oficial de schemas descargado desde GitHub y fijado por hash.

@@ -1,0 +1,37 @@
+# Superseded source drafts (local reference only; do not publish)
+/DEVSOUL_QUANT_MVP_TECHNICAL_SPEC.md
+/DevSoul_Quant_MVP_Propuesta_Socio.docx
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local market/account data and generated artifacts
+data/*
+!data/README.md
+artifacts/*
+!artifacts/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# IDE/office temporary files
+.~lock.*#
+.vscode/
+.idea/
+
+# OS
+.DS_Store

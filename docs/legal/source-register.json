@@ -1,0 +1,32 @@
+{
+  "schema": "devsoul-quant.legal-source-register.v1",
+  "reviewed_at": "2026-09-29T02:12:00Z",
+  "notice": "URL and clause register only. No local copies of Deriv website content are retained. This is not legal advice.",
+  "sources": [
+    {
+      "title": "Deriv API Users Terms",
+      "url": "https://deriv.com/terms-and-conditions/api-users",
+      "version": "R26|03",
+      "updated_at": "2026-08-14",
+      "relevant_clauses": ["1.1", "1.3", "2.1", "2.2", "2.3", "2.4", "3", "8"]
+    },
+    {
+      "title": "Deriv General terms of use",
+      "url": "https://deriv.com/terms-and-conditions/general-terms-of-use",
+      "updated_at": "2026-09-02",
+      "relevant_clauses": ["15.1", "15.5", "15.6"]
+    },
+    {
+      "title": "Deriv Trading terms",
+      "url": "https://deriv.com/terms-and-conditions/trading-terms",
+      "updated_at": "2026-08-20",
+      "relevant_clauses": ["6.1", "6.2", "7.3", "7.4", "7.5"]
+    },
+    {
+      "title": "Deriv Business Partner General Terms",
+      "url": "https://deriv.com/terms-and-conditions/business-partners-general-terms",
+      "updated_at": "2026-07-27",
+      "relevant_clauses": ["5.1", "5.2", "5.12", "9.1", "9.5"]
+    }
+  ]
+}
