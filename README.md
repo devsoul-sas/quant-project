@@ -13,7 +13,7 @@ Los dos documentos fuente originales de la raíz están superados y retirados de
 ## Requisitos
 
 - Python 3.13, gestionado por `uv`
-- `uv` 0.10.4+
+- `uv` 0.12.21+ para instalar exactamente Python 3.13.13
 - Docker con Compose, solo para infraestructura local
 
 ## Preparación
