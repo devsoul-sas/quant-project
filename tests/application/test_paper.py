@@ -12,7 +12,7 @@ from devsoul_quant.domain.contracts import (
     ExitPolicy,
 )
 from devsoul_quant.domain.replay import EconomyProvenance, Outcome, Tick
-from devsoul_quant.domain.risk import RiskDecision, RiskDisposition
+from devsoul_quant.domain.risk import RiskDisposition, RiskPolicy
 
 
 def _intent() -> EnterContractIntent:
@@ -32,10 +32,11 @@ def _intent() -> EnterContractIntent:
 
 
 def test_paper_execution_reuses_the_deterministic_replay_core() -> None:
+    intent = _intent()
     execution = execute_paper(
         execution_id="paper-1",
-        intent=_intent(),
-        risk_decision=RiskDecision(RiskDisposition.APPROVED, "approved"),
+        intent=intent,
+        risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00")),
         ticks=(
             Tick(epoch=1, quote=Decimal("100")),
             Tick(epoch=2, quote=Decimal("100.1")),
@@ -44,16 +45,22 @@ def test_paper_execution_reuses_the_deterministic_replay_core() -> None:
     )
 
     assert execution.execution_id == "paper-1"
+    assert execution.risk_decision.disposition is RiskDisposition.APPROVED
+    assert execution.risk_decision.intent == intent
     assert execution.replay.outcome is Outcome.WIN
     assert execution.replay.economy is EconomyProvenance.UNAVAILABLE
 
 
 def test_paper_execution_fails_closed_without_risk_approval() -> None:
+    intent = _intent()
     with pytest.raises(UnapprovedPaperExecution, match="REJECTED"):
         execute_paper(
             execution_id="paper-1",
-            intent=_intent(),
-            risk_decision=RiskDecision(RiskDisposition.REJECTED, "kill switch"),
+            intent=intent,
+            risk_policy=RiskPolicy(
+                max_amount_per_contract=Decimal("1.00"),
+                kill_switch_enabled=True,
+            ),
             ticks=(
                 Tick(epoch=1, quote=Decimal("100")),
                 Tick(epoch=2, quote=Decimal("100.1")),
@@ -63,11 +70,28 @@ def test_paper_execution_fails_closed_without_risk_approval() -> None:
 
 
 def test_paper_execution_rejects_a_blank_execution_id() -> None:
+    intent = _intent()
     with pytest.raises(ValueError, match="execution_id"):
         execute_paper(
             execution_id=" ",
-            intent=_intent(),
-            risk_decision=RiskDecision(RiskDisposition.APPROVED, "approved"),
+            intent=intent,
+            risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00")),
+            ticks=(
+                Tick(epoch=1, quote=Decimal("100")),
+                Tick(epoch=2, quote=Decimal("100.1")),
+                Tick(epoch=3, quote=Decimal("100.2")),
+            ),
+        )
+
+
+def test_paper_execution_cannot_bypass_the_policy_with_a_larger_intent() -> None:
+    large_intent = _intent().model_copy(update={"amount_requested": Decimal("1000000.00")})
+
+    with pytest.raises(UnapprovedPaperExecution, match="REJECTED"):
+        execute_paper(
+            execution_id="paper-2",
+            intent=large_intent,
+            risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00")),
             ticks=(
                 Tick(epoch=1, quote=Decimal("100")),
                 Tick(epoch=2, quote=Decimal("100.1")),

@@ -1,3 +1,5 @@
+from decimal import ROUND_DOWN, localcontext
+
 from devsoul_quant.application.demo import run_synthetic_demo
 from devsoul_quant.domain.contracts import ContractAction
 from devsoul_quant.domain.execution_mode import ExecutionMode
@@ -29,6 +31,17 @@ def test_demo_report_is_reproducible_and_explicitly_non_economic() -> None:
     assert first.to_dict()["ledger_hashes"] == list(first.ledger_hashes)
     assert first.profitability_claim is False
     assert not ({"balance", "profit", "pnl", "roi"} & first.to_dict().keys())
+
+
+def test_demo_report_ignores_the_mutable_global_decimal_context() -> None:
+    expected = run_synthetic_demo(seed=42)
+
+    with localcontext() as context:
+        context.prec = 3
+        context.rounding = ROUND_DOWN
+        actual = run_synthetic_demo(seed=42)
+
+    assert actual == expected
 
 
 def test_demo_records_no_trade_without_paper_execution() -> None:

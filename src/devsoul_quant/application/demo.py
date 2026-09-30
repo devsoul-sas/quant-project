@@ -98,7 +98,8 @@ def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoRe
         {"action": intent.action.value, "reason": intent.strategy_reason},
     )
 
-    risk_decision = RiskPolicy(max_amount_per_contract=amount_requested).evaluate(intent)
+    risk_policy = RiskPolicy(max_amount_per_contract=amount_requested)
+    risk_decision = risk_policy.evaluate(intent)
     record(
         "RISK_DECIDED",
         {
@@ -112,7 +113,7 @@ def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoRe
         execution = execute_paper(
             execution_id=f"{correlation_id}:paper",
             intent=intent,
-            risk_decision=risk_decision,
+            risk_policy=risk_policy,
             ticks=ticks[1:],
         )
         outcome = execution.replay.outcome

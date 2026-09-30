@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal, localcontext
 from itertools import pairwise
 
 import pytest
@@ -25,6 +25,17 @@ def test_synthetic_ticks_are_deterministic_and_provider_owned() -> None:
     assert first[0].epoch == 1_700_000_000
     assert all(current.epoch > previous.epoch for previous, current in pairwise(first))
     assert all(isinstance(tick.quote, Decimal) and tick.quote > 0 for tick in first)
+
+
+def test_synthetic_ticks_ignore_the_mutable_global_decimal_context() -> None:
+    expected = generate_ticks(seed=42, count=8)
+
+    with localcontext() as context:
+        context.prec = 3
+        context.rounding = ROUND_DOWN
+        actual = generate_ticks(seed=42, count=8)
+
+    assert actual == expected
 
 
 @pytest.mark.parametrize(

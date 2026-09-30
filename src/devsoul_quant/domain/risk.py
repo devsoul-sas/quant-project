@@ -25,6 +25,7 @@ class RiskDecision:
 
     disposition: RiskDisposition
     reason: str
+    intent: ContractIntent
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,11 +45,23 @@ class RiskPolicy:
     def evaluate(self, intent: ContractIntent) -> RiskDecision:
         """Approve only supported entries that satisfy every active limit."""
         if isinstance(intent, NoTradeIntent):
-            return RiskDecision(RiskDisposition.NO_ACTION, "strategy selected no trade")
+            return RiskDecision(RiskDisposition.NO_ACTION, "strategy selected no trade", intent)
         if not isinstance(intent, EnterContractIntent):
-            return RiskDecision(RiskDisposition.REJECTED, "unsupported contract lifecycle action")
+            return RiskDecision(
+                RiskDisposition.REJECTED,
+                "unsupported contract lifecycle action",
+                intent,
+            )
         if self.kill_switch_enabled:
-            return RiskDecision(RiskDisposition.REJECTED, "risk kill switch is enabled")
+            return RiskDecision(RiskDisposition.REJECTED, "risk kill switch is enabled", intent)
         if intent.amount_requested > self.max_amount_per_contract:
-            return RiskDecision(RiskDisposition.REJECTED, "requested amount exceeds risk limit")
-        return RiskDecision(RiskDisposition.APPROVED, "entry is within synthetic risk limits")
+            return RiskDecision(
+                RiskDisposition.REJECTED,
+                "requested amount exceeds risk limit",
+                intent,
+            )
+        return RiskDecision(
+            RiskDisposition.APPROVED,
+            "entry is within synthetic risk limits",
+            intent,
+        )

@@ -33,12 +33,16 @@ def _enter(amount: Decimal = Decimal("1.00")) -> EnterContractIntent:
 
 def test_risk_approves_only_an_enter_within_the_amount_limit() -> None:
     policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"))
+    approved_intent = _enter()
+    rejected_intent = _enter(Decimal("1.01"))
 
-    approved = policy.evaluate(_enter())
-    rejected = policy.evaluate(_enter(Decimal("1.01")))
+    approved = policy.evaluate(approved_intent)
+    rejected = policy.evaluate(rejected_intent)
 
     assert approved.disposition is RiskDisposition.APPROVED
+    assert approved.intent == approved_intent
     assert rejected.disposition is RiskDisposition.REJECTED
+    assert rejected.intent == rejected_intent
     assert "amount" in rejected.reason
 
 
@@ -61,6 +65,7 @@ def test_risk_preserves_no_trade_as_no_action() -> None:
     decision = policy.evaluate(intent)
 
     assert decision.disposition is RiskDisposition.NO_ACTION
+    assert decision.intent == intent
 
 
 @pytest.mark.parametrize(
@@ -84,4 +89,7 @@ def test_risk_rejects_an_unsupported_exit_action() -> None:
         exit_reason="test",
     )
 
-    assert policy.evaluate(intent).disposition is RiskDisposition.REJECTED
+    decision = policy.evaluate(intent)
+
+    assert decision.disposition is RiskDisposition.REJECTED
+    assert decision.intent == intent
