@@ -6,6 +6,8 @@ from typing import Any
 
 from devsoul_quant import __version__
 from devsoul_quant.application.paper import execute_paper
+from devsoul_quant.application.ports.clock import Clock
+from devsoul_quant.application.ports.ledger import LedgerPort
 from devsoul_quant.domain.contracts import ContractAction, EnterContractIntent
 from devsoul_quant.domain.execution_mode import ExecutionMode
 from devsoul_quant.domain.ledger import InMemoryLedger
@@ -62,19 +64,32 @@ class DemoReport:
         }
 
 
-def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoReport:
+def run_synthetic_demo(
+    *,
+    seed: int,
+    start_epoch: int = 1_700_000_000,
+    clock: Clock | None = None,
+    ledger: LedgerPort | None = None,
+) -> DemoReport:
     """Run generator, strategy, risk, paper settlement, and ledger as one slice."""
+    if clock is not None:
+        instant = clock.now()
+        if instant.tzinfo is None or instant.utcoffset() is None:
+            raise ValueError("clock must return a timezone-aware instant")
+        start_epoch = int(instant.timestamp())
     duration = 3
     amount_requested = Decimal("1.00")
     ticks = generate_ticks(seed=seed, count=duration + 2, start_epoch=start_epoch)
     correlation_id = f"synthetic-demo-{seed}"
-    ledger = InMemoryLedger()
+    active_ledger = ledger if ledger is not None else InMemoryLedger()
+    if active_ledger.events:
+        raise ValueError("demo ledger must be empty")
 
     def record(event_type: str, payload: dict[str, str | int | bool | None]) -> str:
-        sequence = len(ledger.events)
+        sequence = len(active_ledger.events)
         event_id = f"{correlation_id}:{sequence:04d}"
-        causation_id = ledger.events[-1].event_id if ledger.events else None
-        ledger.append(
+        causation_id = active_ledger.events[-1].event_id if active_ledger.events else None
+        active_ledger.append(
             event_id=event_id,
             event_type=event_type,
             occurred_at=start_epoch + sequence,
@@ -157,8 +172,8 @@ def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoRe
             "outcome": outcome.value if outcome is not None else None,
         },
     )
-    ledger_valid = ledger.verify()
-    head_hash = ledger.events[-1].event_hash
+    ledger_valid = active_ledger.verify()
+    head_hash = active_ledger.events[-1].event_hash
     return DemoReport(
         schema_version="1",
         code_version=__version__,
@@ -172,9 +187,9 @@ def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoRe
         losses=int(outcome is Outcome.LOSS),
         no_trades=int(intent.action is ContractAction.NO_TRADE),
         economy=EconomyProvenance.UNAVAILABLE,
-        event_count=len(ledger.events),
-        ledger_events=tuple(event.canonical_json() for event in ledger.events),
-        ledger_hashes=tuple(event.event_hash for event in ledger.events),
+        event_count=len(active_ledger.events),
+        ledger_events=tuple(event.canonical_json() for event in active_ledger.events),
+        ledger_hashes=tuple(event.event_hash for event in active_ledger.events),
         ledger_head_hash=head_hash,
         ledger_valid=ledger_valid,
         profitability_claim=False,

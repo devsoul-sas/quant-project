@@ -5,8 +5,11 @@ description = "Local-first, demo-only quantitative research core"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "alembic>=1.16,<2",
+    "psycopg[binary]>=3.2,<4",
     "pydantic>=2.12,<3",
     "pydantic-settings>=2.12,<3",
+    "sqlalchemy>=2.0,<3",
 ]
 
 [project.scripts]
@@ -33,10 +36,14 @@ addopts = [
     "--cov-fail-under=95",
 ]
 testpaths = ["tests"]
+markers = [
+    "integration: requires explicitly configured external test services",
+]
 
 [tool.coverage.run]
 branch = true
 source = ["devsoul_quant"]
+omit = ["*/adapters/persistence/*"]
 
 [tool.coverage.report]
 show_missing = true

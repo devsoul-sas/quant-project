@@ -30,6 +30,17 @@ uv sync --locked
 
 El gate ejecuta formato, lint, tipos, tests con cobertura y build del paquete.
 
+Las pruebas de integración con PostgreSQL real se ejecutan aparte, porque necesitan
+un esquema aislado y un rol restringido:
+
+```bash
+./scripts/verify-integration.sh
+```
+
+El script espera `TEST_DATABASE_OWNER_URL` y `TEST_DATABASE_URL` apuntando a una base
+local. Aplica la migración, corre las pruebas y demuestra que el rol de aplicación no
+puede ejecutar `UPDATE`/`DELETE` sobre eventos cerrados.
+
 La cobertura mínima del 95 % se calcula sobre **toda** la suite. Para ejecutar un archivo
 de pruebas de forma focalizada sin que el resto del código cuente como no cubierto, use:
 
@@ -72,6 +83,24 @@ replay y ledger hash-chained. Devuelve JSON con acción, decisión de riesgo, re
 direccional, procedencia económica, hashes de cada evento y hash final. `economy=UNAVAILABLE` y
 `profitability_claim=false` son deliberados: esta demo valida comportamiento técnico, no
 rentabilidad ni P/L. La CLI no ofrece modo real ni acepta credenciales.
+
+El ledger es `memory` por defecto. Para persistir la cadena en PostgreSQL local (solo
+eventos propios/sintéticos):
+
+```bash
+export DEVSOUL_QUANT_DATABASE_URL='postgresql+psycopg://user:password@127.0.0.1:5434/devsoul_quant'
+export DEVSOUL_QUANT_DATABASE_SCHEMA='quant'
+uv run devsoul-quant demo --seed 42 --ledger-backend postgres --ledger-id run-42
+```
+
+La ruta `postgres` falla cerrada si faltan la URL, el esquema o `--ledger-id`; nunca
+degrada silenciosamente a memoria. La misma semilla produce el mismo reporte byte a byte
+en ambos backends.
+
+El ledger es append-only y cada demo exige una cadena vacía para empezar: re-ejecutar con
+el mismo `--ledger-id` falla cerrado (no sobrescribe eventos previos). Para una ejecución
+nueva use un `--ledger-id` distinto; para corregir un registro ya cerrado, emita un evento
+de ajuste en vez de mutar el histórico.
 
 ## Documentación
 

@@ -1,0 +1,4 @@
+[run]
+branch = true
+# No omit here: integration coverage measures the persistence adapter that the
+# unit gate intentionally excludes (it needs a live PostgreSQL).

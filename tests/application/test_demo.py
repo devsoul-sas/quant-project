@@ -1,11 +1,13 @@
 import json
+from datetime import UTC, datetime
 from decimal import ROUND_DOWN, localcontext
 from hashlib import sha256
 
+from devsoul_quant.adapters.clock.replay import ReplayClock
 from devsoul_quant.application.demo import run_synthetic_demo
 from devsoul_quant.domain.contracts import ContractAction
 from devsoul_quant.domain.execution_mode import ExecutionMode
-from devsoul_quant.domain.ledger import GENESIS_HASH
+from devsoul_quant.domain.ledger import GENESIS_HASH, InMemoryLedger
 from devsoul_quant.domain.replay import EconomyProvenance, Outcome
 from devsoul_quant.domain.risk import RiskDisposition
 
@@ -34,6 +36,24 @@ def test_demo_report_is_reproducible_and_explicitly_non_economic() -> None:
     assert first.to_dict()["ledger_hashes"] == list(first.ledger_hashes)
     assert first.profitability_claim is False
     assert not ({"balance", "profit", "pnl", "roi"} & first.to_dict().keys())
+
+
+def test_demo_uses_an_injected_clock_without_reading_system_time() -> None:
+    clock = ReplayClock(datetime.fromtimestamp(1_700_000_000, tz=UTC))
+
+    with_clock = run_synthetic_demo(seed=42, clock=clock)
+    with_epoch = run_synthetic_demo(seed=42, start_epoch=1_700_000_000)
+
+    assert with_clock == with_epoch
+
+
+def test_demo_uses_an_injected_append_only_ledger() -> None:
+    ledger = InMemoryLedger()
+
+    report = run_synthetic_demo(seed=42, ledger=ledger)
+
+    assert len(ledger.events) == report.event_count
+    assert ledger.events[-1].event_hash == report.ledger_head_hash
 
 
 def test_demo_report_ignores_the_mutable_global_decimal_context() -> None:

@@ -106,6 +106,58 @@ def _event_hash(
     return sha256(canonical.encode()).hexdigest()
 
 
+def build_ledger_event(
+    *,
+    sequence: int,
+    event_id: str,
+    event_type: str,
+    occurred_at: int,
+    correlation_id: str,
+    causation_id: str | None,
+    payload: Mapping[str, LedgerScalar],
+    previous_hash: str,
+) -> LedgerEvent:
+    """Validate and build the canonical event shared by every ledger adapter."""
+    if type(sequence) is not int or sequence < 0:
+        raise ValueError("sequence must be a non-negative integer")
+    _require_non_blank(event_id, "event_id")
+    _require_non_blank(event_type, "event_type")
+    if type(occurred_at) is not int:
+        raise ValueError("occurred_at must be an integer")
+    _require_non_blank(correlation_id, "correlation_id")
+    if causation_id is not None:
+        _require_non_blank(causation_id, "causation_id")
+    _validate_payload(payload)
+    if (
+        not isinstance(previous_hash, str)
+        or len(previous_hash) != 64
+        or any(character not in "0123456789abcdef" for character in previous_hash)
+    ):
+        raise ValueError("previous_hash must be a lowercase SHA-256 hash")
+    immutable_payload = MappingProxyType(dict(payload))
+    event_hash = _event_hash(
+        sequence=sequence,
+        event_id=event_id,
+        event_type=event_type,
+        occurred_at=occurred_at,
+        correlation_id=correlation_id,
+        causation_id=causation_id,
+        payload=immutable_payload,
+        previous_hash=previous_hash,
+    )
+    return LedgerEvent(
+        sequence=sequence,
+        event_id=event_id,
+        event_type=event_type,
+        occurred_at=occurred_at,
+        correlation_id=correlation_id,
+        causation_id=causation_id,
+        payload=immutable_payload,
+        previous_hash=previous_hash,
+        event_hash=event_hash,
+    )
+
+
 class InMemoryLedger:
     """Append-only in-memory ledger used by deterministic synthetic runs."""
 
@@ -127,14 +179,6 @@ class InMemoryLedger:
         causation_id: str | None,
         payload: Mapping[str, LedgerScalar],
     ) -> LedgerEvent:
-        _require_non_blank(event_id, "event_id")
-        _require_non_blank(event_type, "event_type")
-        if type(occurred_at) is not int:
-            raise ValueError("occurred_at must be an integer")
-        _require_non_blank(correlation_id, "correlation_id")
-        if causation_id is not None:
-            _require_non_blank(causation_id, "causation_id")
-        _validate_payload(payload)
         if event_id in self._event_ids:
             existing = next(event for event in self._events if event.event_id == event_id)
             if (
@@ -148,27 +192,15 @@ class InMemoryLedger:
             raise DuplicateEvent(f"conflicting reuse of ledger event id: {event_id}")
         sequence = len(self._events)
         previous_hash = self._events[-1].event_hash if self._events else GENESIS_HASH
-        immutable_payload = MappingProxyType(dict(payload))
-        event_hash = _event_hash(
+        event = build_ledger_event(
             sequence=sequence,
             event_id=event_id,
             event_type=event_type,
             occurred_at=occurred_at,
             correlation_id=correlation_id,
             causation_id=causation_id,
-            payload=immutable_payload,
+            payload=payload,
             previous_hash=previous_hash,
-        )
-        event = LedgerEvent(
-            sequence=sequence,
-            event_id=event_id,
-            event_type=event_type,
-            occurred_at=occurred_at,
-            correlation_id=correlation_id,
-            causation_id=causation_id,
-            payload=immutable_payload,
-            previous_hash=previous_hash,
-            event_hash=event_hash,
         )
         self._events.append(event)
         self._event_ids.add(event_id)
