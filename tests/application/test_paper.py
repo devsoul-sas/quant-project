@@ -36,7 +36,7 @@ def test_paper_execution_reuses_the_deterministic_replay_core() -> None:
     execution = execute_paper(
         execution_id="paper-1",
         intent=intent,
-        risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00")),
+        risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False),
         ticks=(
             Tick(epoch=1, quote=Decimal("100")),
             Tick(epoch=2, quote=Decimal("100.1")),
@@ -75,7 +75,9 @@ def test_paper_execution_rejects_a_blank_execution_id() -> None:
         execute_paper(
             execution_id=" ",
             intent=intent,
-            risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00")),
+            risk_policy=RiskPolicy(
+                max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False
+            ),
             ticks=(
                 Tick(epoch=1, quote=Decimal("100")),
                 Tick(epoch=2, quote=Decimal("100.1")),
@@ -91,7 +93,9 @@ def test_paper_execution_cannot_bypass_the_policy_with_a_larger_intent() -> None
         execute_paper(
             execution_id="paper-2",
             intent=large_intent,
-            risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00")),
+            risk_policy=RiskPolicy(
+                max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False
+            ),
             ticks=(
                 Tick(epoch=1, quote=Decimal("100")),
                 Tick(epoch=2, quote=Decimal("100.1")),

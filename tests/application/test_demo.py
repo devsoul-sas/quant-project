@@ -1,8 +1,11 @@
+import json
 from decimal import ROUND_DOWN, localcontext
+from hashlib import sha256
 
 from devsoul_quant.application.demo import run_synthetic_demo
 from devsoul_quant.domain.contracts import ContractAction
 from devsoul_quant.domain.execution_mode import ExecutionMode
+from devsoul_quant.domain.ledger import GENESIS_HASH
 from devsoul_quant.domain.replay import EconomyProvenance, Outcome
 from devsoul_quant.domain.risk import RiskDisposition
 
@@ -55,3 +58,30 @@ def test_demo_records_no_trade_without_paper_execution() -> None:
     assert report.no_trades == 1
     assert report.event_count == 5
     assert report.ledger_valid
+
+
+def test_demo_ledger_is_externally_verifiable_and_preserves_the_full_contract_spec() -> None:
+    report = run_synthetic_demo(seed=42)
+
+    assert len(report.ledger_events) == report.event_count == len(report.ledger_hashes)
+
+    previous_hash = GENESIS_HASH
+    for canonical, claimed_hash in zip(report.ledger_events, report.ledger_hashes, strict=True):
+        assert sha256(canonical.encode()).hexdigest() == claimed_hash
+        assert json.loads(canonical)["previous_hash"] == previous_hash
+        previous_hash = claimed_hash
+    assert previous_hash == report.ledger_head_hash
+
+    decided = json.loads(report.ledger_events[2])
+    assert decided["event_type"] == "STRATEGY_DECIDED"
+    for field in (
+        "symbol",
+        "contract_type",
+        "duration",
+        "duration_unit",
+        "basis",
+        "amount_requested",
+        "currency",
+        "exit_policy",
+    ):
+        assert field in decided["payload"]

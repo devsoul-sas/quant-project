@@ -32,7 +32,7 @@ def _enter(amount: Decimal = Decimal("1.00")) -> EnterContractIntent:
 
 
 def test_risk_approves_only_an_enter_within_the_amount_limit() -> None:
-    policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"))
+    policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False)
     approved_intent = _enter()
     rejected_intent = _enter(Decimal("1.01"))
 
@@ -55,8 +55,13 @@ def test_risk_kill_switch_rejects_every_enter() -> None:
     assert "kill switch" in decision.reason
 
 
+def test_risk_policy_requires_an_explicit_kill_switch_decision() -> None:
+    with pytest.raises(TypeError):
+        RiskPolicy(max_amount_per_contract=Decimal("1.00"))  # type: ignore[call-arg]
+
+
 def test_risk_preserves_no_trade_as_no_action() -> None:
-    policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"))
+    policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False)
     intent = NoTradeIntent(
         action=ContractAction.NO_TRADE,
         strategy_reason="flat synthetic momentum",
@@ -71,7 +76,7 @@ def test_risk_preserves_no_trade_as_no_action() -> None:
 @pytest.mark.parametrize(
     "arguments",
     [
-        {"max_amount_per_contract": Decimal("NaN")},
+        {"max_amount_per_contract": Decimal("NaN"), "kill_switch_enabled": False},
         {"max_amount_per_contract": Decimal("1"), "kill_switch_enabled": 1},
     ],
 )
@@ -81,7 +86,7 @@ def test_risk_policy_rejects_unsafe_configuration(arguments: dict[str, object]) 
 
 
 def test_risk_rejects_an_unsupported_exit_action() -> None:
-    policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"))
+    policy = RiskPolicy(max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False)
     intent = ExitContractIntent(
         action=ContractAction.EXIT_CONTRACT,
         position_id="position-1",

@@ -39,6 +39,28 @@ def test_ledger_appends_an_immutable_hash_chain() -> None:
 
 def test_ledger_rejects_a_duplicate_event_id() -> None:
     ledger = InMemoryLedger()
+    ledger.append(
+        event_id="event-1",
+        event_type="DEMO_STARTED",
+        occurred_at=1_000,
+        correlation_id="demo-42",
+        causation_id=None,
+        payload={"seed": 42},
+    )
+
+    with pytest.raises(DuplicateEvent, match="conflicting"):
+        ledger.append(
+            event_id="event-1",
+            event_type="DEMO_STARTED",
+            occurred_at=1_000,
+            correlation_id="demo-42",
+            causation_id=None,
+            payload={"seed": 43},
+        )
+
+
+def test_ledger_identical_retry_is_idempotent() -> None:
+    ledger = InMemoryLedger()
     common = {
         "event_id": "event-1",
         "event_type": "DEMO_STARTED",
@@ -47,10 +69,12 @@ def test_ledger_rejects_a_duplicate_event_id() -> None:
         "causation_id": None,
         "payload": {"seed": 42},
     }
-    ledger.append(**common)
+    first = ledger.append(**common)
 
-    with pytest.raises(DuplicateEvent, match="event-1"):
-        ledger.append(**common)
+    retried = ledger.append(**common)
+
+    assert retried == first
+    assert len(ledger.events) == 1
 
 
 def test_ledger_detects_a_forged_historical_payload() -> None:
@@ -66,6 +90,21 @@ def test_ledger_detects_a_forged_historical_payload() -> None:
     forged = replace(original, payload={"approved": True})
 
     assert not verify_chain((forged,))
+
+
+def test_verify_chain_returns_false_for_a_non_serializable_payload() -> None:
+    ledger = InMemoryLedger()
+    original = ledger.append(
+        event_id="event-1",
+        event_type="RISK_DECIDED",
+        occurred_at=1_000,
+        correlation_id="demo-42",
+        causation_id=None,
+        payload={"approved": False},
+    )
+    forged = replace(original, payload={"amount": Decimal("1.00")})  # type: ignore[dict-item]
+
+    assert verify_chain((forged,)) is False
 
 
 @pytest.mark.parametrize(

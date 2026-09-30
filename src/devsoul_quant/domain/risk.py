@@ -30,10 +30,10 @@ class RiskDecision:
 
 @dataclass(frozen=True, slots=True)
 class RiskPolicy:
-    """Minimal fail-closed stake and kill-switch policy."""
+    """Fail-closed stake and kill-switch policy with an explicit switch."""
 
     max_amount_per_contract: Decimal
-    kill_switch_enabled: bool = False
+    kill_switch_enabled: bool
 
     def __post_init__(self) -> None:
         amount = self.max_amount_per_contract

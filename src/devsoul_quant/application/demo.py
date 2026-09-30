@@ -32,6 +32,7 @@ class DemoReport:
     no_trades: int
     economy: EconomyProvenance
     event_count: int
+    ledger_events: tuple[str, ...]
     ledger_hashes: tuple[str, ...]
     ledger_head_hash: str
     ledger_valid: bool
@@ -53,6 +54,7 @@ class DemoReport:
             "no_trades": self.no_trades,
             "economy": self.economy.value,
             "event_count": self.event_count,
+            "ledger_events": list(self.ledger_events),
             "ledger_hashes": list(self.ledger_hashes),
             "ledger_head_hash": self.ledger_head_hash,
             "ledger_valid": self.ledger_valid,
@@ -93,12 +95,35 @@ def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoRe
         duration=duration,
         amount_requested=amount_requested,
     )
+    if isinstance(intent, EnterContractIntent):
+        strategy_payload: dict[str, str | int | bool | None] = {
+            "action": intent.action.value,
+            "reason": intent.strategy_reason,
+            "symbol": intent.symbol,
+            "contract_type": intent.contract_type.value,
+            "duration": intent.duration,
+            "duration_unit": intent.duration_unit.value,
+            "basis": intent.basis.value,
+            "amount_requested": str(intent.amount_requested),
+            "currency": intent.currency,
+            "barrier": str(intent.barrier) if intent.barrier is not None else None,
+            "exit_policy": intent.exit_policy.value,
+        }
+    else:
+        strategy_payload = {
+            "action": intent.action.value,
+            "reason": intent.strategy_reason,
+        }
     record(
         "STRATEGY_DECIDED",
-        {"action": intent.action.value, "reason": intent.strategy_reason},
+        strategy_payload,
     )
 
-    risk_policy = RiskPolicy(max_amount_per_contract=amount_requested)
+    # Synthetic paper slice opts out of the kill switch explicitly and locally.
+    risk_policy = RiskPolicy(
+        max_amount_per_contract=amount_requested,
+        kill_switch_enabled=False,
+    )
     risk_decision = risk_policy.evaluate(intent)
     record(
         "RISK_DECIDED",
@@ -148,6 +173,7 @@ def run_synthetic_demo(*, seed: int, start_epoch: int = 1_700_000_000) -> DemoRe
         no_trades=int(intent.action is ContractAction.NO_TRADE),
         economy=EconomyProvenance.UNAVAILABLE,
         event_count=len(ledger.events),
+        ledger_events=tuple(event.canonical_json() for event in ledger.events),
         ledger_hashes=tuple(event.event_hash for event in ledger.events),
         ledger_head_hash=head_hash,
         ledger_valid=ledger_valid,
