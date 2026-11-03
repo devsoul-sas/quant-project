@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devsoul.co/schemas/source-manifest.schema.json",
+  "title": "Data rights source manifest",
+  "description": "Machine-readable declaration of a dataset's provenance and use rights. Persistence is gated on this manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_id",
+    "source_kind",
+    "license_identifier",
+    "license_url",
+    "retrieved_at",
+    "retention_seconds",
+    "derived_artifacts_allowed",
+    "partner_display_allowed",
+    "redistribution_allowed",
+    "commercial_use_allowed",
+    "geographic_constraints",
+    "written_authorization_ref",
+    "manifest_hash"
+  ],
+  "properties": {
+    "source_id": { "type": "string", "minLength": 1 },
+    "source_kind": {
+      "type": "string",
+      "enum": ["DEVSOUL_SYNTHETIC", "LICENSED_EXTERNAL"]
+    },
+    "license_identifier": { "type": ["string", "null"] },
+    "license_url": { "type": ["string", "null"] },
+    "retrieved_at": { "type": ["integer", "null"] },
+    "retention_seconds": { "type": ["integer", "null"], "minimum": 0 },
+    "derived_artifacts_allowed": { "type": "boolean" },
+    "partner_display_allowed": { "type": "boolean" },
+    "redistribution_allowed": { "type": "boolean" },
+    "commercial_use_allowed": { "type": "boolean" },
+    "geographic_constraints": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "written_authorization_ref": { "type": ["string", "null"] },
+    "manifest_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

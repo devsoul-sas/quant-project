@@ -74,12 +74,38 @@ def test_momentum_baseline_emits_no_trade_when_quotes_are_equal() -> None:
     assert decision.action is ContractAction.NO_TRADE
 
 
+def test_momentum_baseline_accepts_an_explicit_symbol() -> None:
+    decision = momentum_decision(
+        history=(Tick(epoch=1, quote=Decimal("100")), Tick(epoch=2, quote=Decimal("101"))),
+        duration=3,
+        amount_requested=Decimal("1.00"),
+        symbol="R_100",
+    )
+
+    assert isinstance(decision, EnterContractIntent)
+    assert decision.symbol == "R_100"
+
+
+def test_momentum_baseline_rejects_a_blank_symbol() -> None:
+    with pytest.raises(InvalidStrategyInput):
+        momentum_decision(
+            history=(
+                Tick(epoch=1, quote=Decimal("100")),
+                Tick(epoch=2, quote=Decimal("101")),
+            ),
+            duration=3,
+            amount_requested=Decimal("1.00"),
+            symbol="   ",
+        )
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
         {"seed": True, "count": 2},
         {"seed": 1, "count": 1},
         {"seed": 1, "count": 2, "start_epoch": True},
+        {"seed": 1, "count": 2, "interval": 0},
         {"seed": 1, "count": 2, "start_quote": Decimal("NaN")},
     ],
 )

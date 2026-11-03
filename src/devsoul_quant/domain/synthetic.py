@@ -22,6 +22,7 @@ def generate_ticks(
     count: int,
     start_epoch: int = 1_700_000_000,
     start_quote: Decimal = Decimal("100.0000"),
+    interval: int = 1,
 ) -> tuple[Tick, ...]:
     """Generate a deterministic random walk without provider data."""
     if type(seed) is not int:
@@ -30,6 +31,8 @@ def generate_ticks(
         raise InvalidSyntheticScenario("count must be an integer of at least two")
     if type(start_epoch) is not int:
         raise InvalidSyntheticScenario("start_epoch must be an integer")
+    if type(interval) is not int or interval < 1:
+        raise InvalidSyntheticScenario("interval must be a positive integer")
     if not isinstance(start_quote, Decimal) or not start_quote.is_finite() or start_quote <= 0:
         raise InvalidSyntheticScenario("start_quote must be a positive finite Decimal")
 
@@ -46,5 +49,5 @@ def generate_ticks(
             quote += step
             if quote <= 0:
                 raise InvalidSyntheticScenario("generated quote must remain positive")
-            ticks.append(Tick(epoch=start_epoch + offset, quote=quote))
+            ticks.append(Tick(epoch=start_epoch + offset * interval, quote=quote))
     return tuple(ticks)

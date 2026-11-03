@@ -1,0 +1,15 @@
+{
+  "source_id": "deriv",
+  "source_kind": "LICENSED_EXTERNAL",
+  "license_identifier": "DERIV-API-USERS-TERMS-R26",
+  "license_url": "https://deriv.com/terms-and-conditions/api-users",
+  "retrieved_at": 1760000000,
+  "retention_seconds": 3600,
+  "derived_artifacts_allowed": false,
+  "partner_display_allowed": false,
+  "redistribution_allowed": false,
+  "commercial_use_allowed": false,
+  "geographic_constraints": [],
+  "written_authorization_ref": null,
+  "manifest_hash": "39af3832884ab2e58b409dd6cdd57d66481416ebc22e8aafd18aaf314a18f182"
+}

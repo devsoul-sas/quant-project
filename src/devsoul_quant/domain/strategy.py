@@ -20,9 +20,13 @@ class InvalidStrategyInput(ValueError):
 
 
 def momentum_decision(
-    *, history: Sequence[Tick], duration: int, amount_requested: Decimal
+    *,
+    history: Sequence[Tick],
+    duration: int,
+    amount_requested: Decimal,
+    symbol: str = "SYNTH_OWNED",
 ) -> EnterContractIntent | NoTradeIntent:
-    """Compare the latest two owned synthetic ticks without economic claims."""
+    """Compare the latest two owned ticks without economic claims."""
     if len(history) < 2:
         raise InvalidStrategyInput("momentum requires at least two ticks")
     if type(duration) is not int or duration <= 0:
@@ -33,6 +37,8 @@ def momentum_decision(
         or amount_requested <= 0
     ):
         raise InvalidStrategyInput("amount_requested must be a positive finite Decimal")
+    if not isinstance(symbol, str) or not symbol.strip():
+        raise InvalidStrategyInput("symbol must be a non-blank string")
 
     previous, current = history[-2:]
     if current.epoch <= previous.epoch:
@@ -46,7 +52,7 @@ def momentum_decision(
     contract_type = ContractType.CALL if current.quote > previous.quote else ContractType.PUT
     return EnterContractIntent(
         action=ContractAction.ENTER_CONTRACT,
-        symbol="SYNTH_OWNED",
+        symbol=symbol,
         contract_type=contract_type,
         duration=duration,
         duration_unit=DurationUnit.TICKS,
