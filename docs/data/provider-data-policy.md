@@ -1,7 +1,15 @@
 # Política provisional de datos del proveedor
 
 Estado: bloqueante
-Fecha: 2026-09-29
+Fecha: 2026-09-29 (actualización 2026-10-29)
+
+## Estado de la revisión del proveedor
+
+La solicitud a Deriv sigue en revisión (`PENDING_PROVIDER_REVIEW`, última notificación
+2026-10-29). El cierre del chat de soporte no tiene efecto de licencia. La política
+permanece bloqueante para la persistencia de contenido Deriv; la investigación continúa
+provider-independiente con datos sintéticos propios según ADR-006. Ningún payload Deriv
+entra en persistencia hasta validar un manifest de licencia compatible.
 
 ## Regla vigente
 

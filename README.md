@@ -102,12 +102,52 @@ el mismo `--ledger-id` falla cerrado (no sobrescribe eventos previos). Para una 
 nueva use un `--ledger-id` distinto; para corregir un registro ya cerrado, emita un evento
 de ajuste en vez de mutar el histórico.
 
+## Investigación reproducible (Gate 3)
+
+El pipeline de investigación es provider-independiente y demostrable a socios sin depender
+de Deriv ni afirmar rentabilidad:
+
+```bash
+uv run devsoul-quant research synthetic \
+  --spec examples/research-synthetic.json \
+  --output <directorio>
+```
+
+El comando falla cerrado si el árbol de trabajo está sucio (incluidos archivos sin rastrear)
+o si el directorio de salida ya existe. Produce `run-report.json`, `run-summary.md` y
+`manifest.json` con identidades SHA-256 encadenadas (dataset, features, split, holdout,
+reporte). La evidencia sintética queda etiquetada como no económica y
+`evaluation.promotion_eligibility=NOT_ELIGIBLE`.
+
+`examples/research-synthetic.json` es una especificación reproducible de referencia. Cambiar
+la semilla, el dataset, las features o el split produce identidades SHA-256 diferentes.
+
+Verificación del pipeline (doble ejecución byte a byte + invariantes):
+
+```bash
+./scripts/verify-research.sh
+```
+
+## Integración efímera de Deriv (preparada, no habilitada)
+
+Los adapters demo, validación de URL, OTP, colector acotado y caché ≤24 h están probados
+offline. Sin embargo, `live-demo` y `live-evaluate` fallan cerrados antes de leer secretos o
+abrir la red: sus decisiones y métricas podrían redirigirse desde stdout a almacenamiento sin
+TTL verificable. Permanecerán deshabilitados hasta contar con autorización escrita y un sink
+de salida compatible con esos derechos. `/ws/real` sigue rechazado por construcción.
+
+No configures tokens ni OTP mientras este gate permanezca bloqueado. Véase
+`docs/deriv/ephemeral-demo.md` para el estado y las garantías preparadas.
+
 ## Documentación
 
 - `docs/README.md`
 - `docs/scope/gate-0-status.md`
 - `docs/deriv/api-storage-blocker.md`
 - `docs/adr/ADR-005-deriv-data-retention-blocker.md`
+- `docs/adr/ADR-006-provider-independent-research-pivot.md`
+- `docs/partner/demo-evidence-guide.md`
+- `docs/data/provider-evaluation-template.md`
 
 ## Seguridad
 

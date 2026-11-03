@@ -8,6 +8,21 @@ Estado: **BLOQUEADO POR LICENCIA DE DATOS**.
 
 La API y el lifecycle técnico fueron verificados, pero los API Users Terms actuales no permiten el histórico persistente que requieren los documentos originales. La API solo permite cachear contenido durante un máximo de 24 horas, salvo autorización adicional.
 
+## Estado de la revisión del proveedor
+
+Actualizado: 2026-10-29.
+
+Estado: **PENDING_PROVIDER_REVIEW**.
+
+Deriv notificó en reiteradas ocasiones (la más reciente el 2026-10-29) que la solicitud
+sigue en revisión por el equipo competente y que el chat de soporte queda cerrado mientras
+tanto. El cierre del chat no tiene efecto de licencia y la notificación de "revisión en
+curso" no constituye autorización de retención, derivados, presentación ni redistribución.
+
+Deriv ya no está en el camino crítico: la investigación continúa provider-independiente con
+datos sintéticos propios y la ruta alternativa de fuente con licencia compatible permanece
+abierta (véase ADR-006). El estado de revisión no bloquea el avance de ingeniería.
+
 ## Decisiones técnicas válidas
 
 - arquitectura local-first y monolito modular;
@@ -58,8 +73,9 @@ Una de estas:
 
 ## Próximo paso
 
-Deriv confirmó que la solicitud fue escalada al equipo competente y estimó una respuesta
-en uno a tres días hábiles. No abrir solicitudes duplicadas durante ese plazo. Esperar la
-respuesta sustantiva, conservarla fuera del repositorio público y documentar aquí solo su
-interpretación operativa redactada. El bootstrap técnico puede avanzar, pero no el pipeline
-persistente de mercado. La escalación y el plazo informado no constituyen autorización.
+Deriv notificó en reiteradas ocasiones (más reciente: 2026-10-29) que la revisión sigue en
+curso y que el chat queda cerrado mientras tanto. No abrir solicitudes duplicadas. El estado
+es `PENDING_PROVIDER_REVIEW`: no constituye autorización y no bloquea el avance de
+ingeniería. El pipeline de investigación avanza provider-independiente con datos sintéticos
+propios (ADR-006); el pipeline persistente de mercado continúa bloqueado hasta autorización
+escrita o adopción de una fuente con licencia compatible.
