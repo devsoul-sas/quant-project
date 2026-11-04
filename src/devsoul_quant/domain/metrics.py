@@ -18,6 +18,7 @@ class EvidenceMode(StrEnum):
     """Provenance label for the evidence being evaluated."""
 
     TICK_PROXY_BACKTEST = "TICK_PROXY_BACKTEST"
+    QUOTE_REPLAY_BACKTEST = "QUOTE_REPLAY_BACKTEST"
 
 
 class PromotionEligibility(StrEnum):
@@ -28,6 +29,7 @@ class PromotionEligibility(StrEnum):
 
 _PROMOTION_MATRIX: dict[EvidenceMode, PromotionEligibility] = {
     EvidenceMode.TICK_PROXY_BACKTEST: PromotionEligibility.NOT_ELIGIBLE,
+    EvidenceMode.QUOTE_REPLAY_BACKTEST: PromotionEligibility.NOT_ELIGIBLE,
 }
 
 
@@ -171,6 +173,10 @@ def evaluate(
         trial.provenance is not EconomyProvenance.UNAVAILABLE for trial in all_trials
     ):
         raise InvalidEvaluation("tick-proxy evaluation cannot use observed economics")
+    if evidence_mode is EvidenceMode.QUOTE_REPLAY_BACKTEST and any(
+        trial.provenance is not EconomyProvenance.OBSERVED for trial in all_trials
+    ):
+        raise InvalidEvaluation("quote-replay evaluation requires observed economics")
 
     decisions = len(all_trials)
     entered = [trial for trial in all_trials if trial.decision is ContractAction.ENTER_CONTRACT]

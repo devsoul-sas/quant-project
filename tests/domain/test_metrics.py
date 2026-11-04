@@ -90,6 +90,46 @@ def test_rejects_observed_economics_in_tick_proxy() -> None:
         )
 
 
+def test_quote_replay_accepts_observed_economics() -> None:
+    trials = (
+        TrialOutcome(
+            decision=ContractAction.ENTER_CONTRACT,
+            outcome=Outcome.WIN,
+            provenance=EconomyProvenance.OBSERVED,
+        ),
+        TrialOutcome(
+            decision=ContractAction.ENTER_CONTRACT,
+            outcome=Outcome.LOSS,
+            provenance=EconomyProvenance.OBSERVED,
+        ),
+    )
+    report = evaluate(
+        folds=(trials,),
+        evidence_mode=EvidenceMode.QUOTE_REPLAY_BACKTEST,
+        seed=1,
+    )
+
+    assert report.evidence_mode is EvidenceMode.QUOTE_REPLAY_BACKTEST
+    assert report.promotion_eligibility is PromotionEligibility.NOT_ELIGIBLE
+    assert report.economic_metrics_available is False
+
+
+def test_quote_replay_rejects_unavailable_economics() -> None:
+    with pytest.raises(InvalidEvaluation, match="observed"):
+        evaluate(
+            folds=((_enter(Outcome.WIN),),),
+            evidence_mode=EvidenceMode.QUOTE_REPLAY_BACKTEST,
+            seed=1,
+        )
+
+
+def test_promotion_matrix_denies_quote_replay() -> None:
+    assert (
+        promotion_eligibility(EvidenceMode.QUOTE_REPLAY_BACKTEST)
+        is PromotionEligibility.NOT_ELIGIBLE
+    )
+
+
 def test_counts_hit_rate_and_loss_streak() -> None:
     report = evaluate(
         folds=((_enter(Outcome.WIN), _enter(Outcome.LOSS), _enter(Outcome.LOSS), _wait()),),

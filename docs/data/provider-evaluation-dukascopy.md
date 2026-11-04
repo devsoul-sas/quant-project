@@ -1,6 +1,6 @@
 # Evaluación de proveedor: Dukascopy
 
-- Fecha de consulta: 2026-10-29
+- Fecha de consulta: 2026-10-29 (re-verificado 2026-11-04: cláusulas restrictivas sin cambios)
 - Resultado: **RECHAZADO PARA EL USO PROPUESTO**
 - Alcance: datos históricos descargables desde el sitio web de Dukascopy
 - Regla: lo no autorizado explícitamente se considera bloqueante

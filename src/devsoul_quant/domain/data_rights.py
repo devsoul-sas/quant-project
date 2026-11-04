@@ -17,6 +17,7 @@ class DataSourceKind(StrEnum):
 
     DEVSOUL_SYNTHETIC = "DEVSOUL_SYNTHETIC"
     LICENSED_EXTERNAL = "LICENSED_EXTERNAL"
+    OPEN_LICENSE = "OPEN_LICENSE"
 
 
 class PersistentUseDecision(StrEnum):

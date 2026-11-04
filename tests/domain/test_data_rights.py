@@ -151,6 +151,35 @@ def test_external_written_authorization_is_allowed_from_approved_registry() -> N
     assert outcome.decision is PersistentUseDecision.ALLOW
 
 
+def test_open_license_manifest_is_allowed_without_written_authorization() -> None:
+    manifest = _valid(
+        source_id="ecb-euro-fx-reference",
+        source_kind=DataSourceKind.OPEN_LICENSE,
+        license_identifier="ECB-COPYRIGHT-POLICY",
+        license_url="https://www.ecb.europa.eu/services/disclaimer/html/index.en.html",
+        written_authorization_ref=None,
+    )
+
+    outcome = decide_persistent_use(manifest)
+
+    assert outcome.decision is PersistentUseDecision.ALLOW
+    assert outcome.reasons == ()
+
+
+def test_open_license_manifest_still_requires_a_license() -> None:
+    manifest = _valid(
+        source_id="ecb-euro-fx-reference",
+        source_kind=DataSourceKind.OPEN_LICENSE,
+        license_identifier=None,
+        license_url=None,
+    )
+
+    outcome = decide_persistent_use(manifest)
+
+    assert outcome.decision is PersistentUseDecision.DENY
+    assert "missing license" in outcome.reasons
+
+
 def test_operation_specific_right_is_required() -> None:
     manifest = _valid(partner_display_allowed=False)
 

@@ -53,6 +53,13 @@ de mercado.
   Reconoce planes Business y Derived Data no reversible, pero no hay un TTL público suficiente
   para corpus históricos ni reglas claras para modelos, backups y retención post-terminación.
 
+## Evaluación BCE (FX diario)
+
+La [evaluación formal del BCE](provider-evaluation-ecb.md) concluyó **APROBADO BAJO
+LICENCIA PERMISIVA** para una estrategia FX de frecuencia diaria: la política de copyright
+concede "free use of the information obtained" con atribución, sin TTL, sin prohibición de
+bases de datos y sin contrato escrito. No desbloquea la vía de ticks/opciones. Ver ADR-007.
+
 ## Resultado de la shortlist
 
 | Proveedor | Resultado |
@@ -61,13 +68,13 @@ de mercado.
 | Binance | Rechazado bajo términos públicos |
 | Alpha Vantage | Rechazado bajo términos estándar |
 | Twelve Data | Condicional, bloqueado pendiente de licencia escrita |
+| BCE (euro FX reference rates) | Aprobado para FX diario (ver ADR-007) |
 
 ## Siguiente paso concreto
 
-Con autorización del usuario y su identidad contractual correcta, solicitar a Twelve Data
-una propuesta escrita Business/Enterprise que cubra persistencia histórica, mercados,
-derivados/modelos, uso interno/partner, SaaS/exportación y borrado. No se envía ninguna
-consulta automáticamente.
+Consolidar el backtest diario sobre datos observados del BCE (ya aprobado) y establecer los
+criterios de promoción fuera de muestra y de holdout. Twelve Data queda como opción futura
+de pago si se requiere intradía/cripto; su consulta comercial no se envía automáticamente.
 
 ## Condición de cambio
 

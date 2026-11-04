@@ -66,8 +66,13 @@ class ReplayResult:
     exit_tick: Tick
 
 
-def replay_rise_fall(intent: EnterContractIntent, ticks: Sequence[Tick]) -> ReplayResult:
-    """Replay a synthetic Rise contract to its tick-duration expiry."""
+def replay_rise_fall(
+    intent: EnterContractIntent,
+    ticks: Sequence[Tick],
+    *,
+    economy: EconomyProvenance = EconomyProvenance.UNAVAILABLE,
+) -> ReplayResult:
+    """Replay a Rise contract to its tick-duration expiry with a declared economy."""
     if intent.barrier is not None:
         raise UnsupportedBarrier("barrier is not supported by the Rise/Fall tracer")
     if len(ticks) <= intent.duration:
@@ -84,7 +89,7 @@ def replay_rise_fall(intent: EnterContractIntent, ticks: Sequence[Tick]) -> Repl
     outcome = Outcome.WIN if won else Outcome.LOSS
     return ReplayResult(
         outcome=outcome,
-        economy=EconomyProvenance.UNAVAILABLE,
+        economy=economy,
         entry_tick=entry_tick,
         exit_tick=exit_tick,
     )

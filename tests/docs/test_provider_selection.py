@@ -47,8 +47,10 @@ def test_candidates_marks_unknowns_as_blockers() -> None:
 
     assert "BLOQUEADO" in text or "bloquean" in text
     assert "PENDING_PROVIDER_REVIEW" in text
-    # no candidate is asserted as approved
-    assert "APROBADO" not in text
+    # BCE is the only approved source, and only for daily FX (never ticks/options)
+    assert "APROBADO BAJO LICENCIA PERMISIVA" in text
+    assert "solo diario" in text
+    assert "sin bid/ask" in text
 
 
 def test_decision_names_the_next_evaluation_target() -> None:

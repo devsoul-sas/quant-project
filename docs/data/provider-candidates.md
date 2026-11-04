@@ -27,10 +27,13 @@ Deriv no está en el camino crítico. No se asume autorización por accesibilida
 ## Evaluación de la shortlist
 
 Cada candidato fue evaluado con la [plantilla](provider-evaluation-template.md) contra sus
-fuentes oficiales. Ninguno está aprobado; `CONDICIONAL` tampoco autoriza ingestión.
+fuentes oficiales. Hasta 2026-11-04 ninguno estaba aprobado; el BCE es el primero en superar
+la licencia, pero solo habilita estrategia FX diaria (no ticks ni opciones). `CONDICIONAL`
+tampoco autoriza ingestión.
 
 | Candidato | Subyacentes | Documento oficial a revisar | Estado |
 |-----------|-------------|------------------------------|--------|
+| BCE (Banco Central Europeo) | forex (fixings diarios frente al euro, ~30 monedas) | [evaluación formal](provider-evaluation-ecb.md) | **APROBADO BAJO LICENCIA PERMISIVA** — free use con atribución; restricción de producto: solo diario, sin bid/ask |
 | Dukascopy | forex, índices, materias primas, cripto (tick/OHLC) | [evaluación formal](provider-evaluation-dukascopy.md) | **RECHAZADO** — uso personal/no comercial; prohíbe bases de datos y automatización sin consentimiento |
 | Binance | cripto (market data pública/histórica) | [evaluación formal](provider-evaluation-binance.md) | **RECHAZADO** — Binance Vision es CC BY-NC-SA; todo uso comercial requiere licencia empresarial escrita y SaaS/feeds comerciales están prohibidos |
 | Alpha Vantage | acciones, forex, cripto | [evaluación formal](provider-evaluation-alpha-vantage.md) | **RECHAZADO BAJO TÉRMINOS ESTÁNDAR** — solo personal/no comercial; acuerdo escrito requerido |
