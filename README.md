@@ -128,16 +128,25 @@ Verificación del pipeline (doble ejecución byte a byte + invariantes):
 ./scripts/verify-research.sh
 ```
 
-## Integración efímera de Deriv (preparada, no habilitada)
+## Integración efímera de Deriv (Escenario A, demo-only)
 
-Los adapters demo, validación de URL, OTP, colector acotado y caché ≤24 h están probados
-offline. Sin embargo, `live-demo` y `live-evaluate` fallan cerrados antes de leer secretos o
-abrir la red: sus decisiones y métricas podrían redirigirse desde stdout a almacenamiento sin
-TTL verificable. Permanecerán deshabilitados hasta contar con autorización escrita y un sink
-de salida compatible con esos derechos. `/ws/real` sigue rechazado por construcción.
+Los adapters demo, validación de URL, OTP, colector acotado y caché de 23 h están probados.
+`live-demo` y `live-evaluate` siguen bloqueados porque exportarían derivados. `demo-execute`
+permite una sola operación demo explícitamente armada y muestra únicamente un recibo genérico:
 
-No configures tokens ni OTP mientras este gate permanezca bloqueado. Véase
-`docs/deriv/ephemeral-demo.md` para el estado y las garantías preparadas.
+```bash
+uv run devsoul-quant demo-execute --symbol R_100 --stake 1.00 \
+  --minimum-net-payout-ratio 0.75 --maximum-session-loss 1.00 \
+  --confirm-demo-only
+```
+
+El proceso espera `DEVSOUL_QUANT_DERIV_TOKEN`, `DEVSOUL_QUANT_DERIV_APP_ID` y opcionalmente
+`DEVSOUL_QUANT_DERIV_ACCOUNT` en el entorno. Nunca pase secretos como argumentos. El comando
+no imprime ni persiste ticks, propuesta, payout, contrato, P/L o métricas; `/ws/real` continúa
+rechazado por construcción.
+
+Los datasets de características y modelos entrenados con contenido Deriv siguen bloqueados sin
+autorización escrita. Véase `docs/deriv/ephemeral-demo.md` para los escenarios A/B/C.
 
 ## Documentación
 

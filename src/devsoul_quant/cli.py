@@ -1,15 +1,19 @@
 """Command-line interface for safe, local DevSoul Quant workflows."""
 
 import argparse
+import asyncio
 import json
 import os
 import subprocess
 import sys
 from collections.abc import Sequence
+from decimal import Decimal
 from pathlib import Path
 from typing import TextIO
 
 from devsoul_quant.application.demo import run_synthetic_demo
+from devsoul_quant.application.demo_execution import DemoExecutionLimits
+from devsoul_quant.application.demo_session import run_demo_session
 from devsoul_quant.application.ports.ledger import LedgerPort
 from devsoul_quant.application.reporting import (
     InvalidResearchSpec,
@@ -113,6 +117,17 @@ def _parser() -> argparse.ArgumentParser:
         "--seed", type=int, default=42, help="deterministic bootstrap seed (default: 42)"
     )
 
+    demo_execute = commands.add_parser(
+        "demo-execute", help="execute at most one explicitly armed Deriv demo contract"
+    )
+    demo_execute.add_argument("--symbol", required=True)
+    demo_execute.add_argument("--duration", type=int, default=3)
+    demo_execute.add_argument("--count", type=int, default=5)
+    demo_execute.add_argument("--stake", type=Decimal, default=Decimal("1.00"))
+    demo_execute.add_argument("--minimum-net-payout-ratio", type=Decimal, default=Decimal("0.75"))
+    demo_execute.add_argument("--maximum-session-loss", type=Decimal, default=Decimal("1.00"))
+    demo_execute.add_argument("--confirm-demo-only", action="store_true")
+
     research = commands.add_parser(
         "research", help="run reproducible provider-independent research"
     )
@@ -156,6 +171,8 @@ def main(argv: Sequence[str] | None = None, *, stdout: TextIO | None = None) -> 
         return _run_live_demo(arguments, destination)
     if arguments.command == "live-evaluate":
         return _run_live_evaluation(arguments, destination)
+    if arguments.command == "demo-execute":
+        return _run_demo_execute(arguments, destination)
     raise AssertionError("argparse accepted an unsupported command")  # pragma: no cover
 
 
@@ -167,6 +184,52 @@ def _run_live_demo(arguments: argparse.Namespace, destination: TextIO) -> int:
 def _run_live_evaluation(arguments: argparse.Namespace, destination: TextIO) -> int:
     destination.write("error: Deriv-derived output is disabled pending written authorization\n")
     return 2
+
+
+def _run_demo_execute(arguments: argparse.Namespace, destination: TextIO) -> int:
+    if not arguments.confirm_demo_only:
+        destination.write("error: pass --confirm-demo-only to arm one demo contract\n")
+        return 2
+    token = os.getenv("DEVSOUL_QUANT_DERIV_TOKEN", "")
+    app_id = os.getenv("DEVSOUL_QUANT_DERIV_APP_ID", "")
+    account_id = os.getenv("DEVSOUL_QUANT_DERIV_ACCOUNT") or None
+    if not token or not app_id:
+        destination.write("error: demo credentials are not configured\n")
+        return 2
+
+    from devsoul_quant.adapters.deriv.client import collect_ticks
+    from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
+    from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+
+    limits = DemoExecutionLimits(
+        fixed_stake=arguments.stake,
+        minimum_net_payout_ratio=arguments.minimum_net_payout_ratio,
+        maximum_contracts=1,
+        maximum_session_loss=arguments.maximum_session_loss,
+        kill_switch_enabled=False,
+    )
+
+    def resolve_url() -> str:
+        return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
+
+    def collect(url: str, symbol: str, count: int) -> object:
+        return asyncio.run(collect_ticks(url, symbol, count=count))
+
+    try:
+        receipt = run_demo_session(
+            symbol=arguments.symbol,
+            tick_count=arguments.count,
+            duration=arguments.duration,
+            limits=limits,
+            resolve_url=resolve_url,
+            collect_ticks=collect,  # type: ignore[arg-type]
+            gateway_factory=lambda url: DerivDemoExecutionGateway(url),
+        )
+    except Exception:
+        destination.write("error: demo session failed safely; inspect provider account state\n")
+        return 2
+    destination.write(f"{receipt.public_message}\n")
+    return 0
 
 
 def _run_research(arguments: argparse.Namespace, destination: TextIO) -> int:

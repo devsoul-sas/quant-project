@@ -58,15 +58,20 @@ def test_no_pii_or_verbatim_support_content_in_policy_documents() -> None:
         assert "Amy" not in text  # no support agent name
 
 
-def test_ephemeral_demo_documents_the_cli_block_and_offline_preparation() -> None:
+def test_ephemeral_demo_documents_the_bounded_demo_execution_and_export_block() -> None:
     text = _read(EPHEMERAL_DEMO)
 
-    assert "CLI bloqueada" in text
+    assert "Escenario A" in text
+    assert "Estadísticas transitorias: permitido" in text
+    assert "Dataset histórico de características: bloqueado" in text
+    assert "Pesos de modelos entrenados: bloqueado" in text
     assert "Deriv-derived output is disabled pending written authorization" in text
-    assert "No se necesita ni se debe configurar PAT" in text
+    assert "demo-execute" in text
+    assert "máximo de un contrato" in text
+    assert "recibo operativo genérico" in text
+    assert "deadline monotónico absoluto de una hora" in text
     assert "rechaza el endpoint real (`/ws/real`)" in text
-    assert "Preparación técnica offline" in text
-    assert "no habilita el uso operativo" in text
+    assert "no backtest histórico ni evidencia de rentabilidad" in text
 
 
 def test_ephemeral_demo_does_not_instruct_credential_or_network_use() -> None:
@@ -76,3 +81,5 @@ def test_ephemeral_demo_does_not_instruct_credential_or_network_use() -> None:
     assert "uv run devsoul-quant live-evaluate" not in text
     assert "export DEVSOUL_QUANT_DERIV_TOKEN" not in text
     assert "export DEVSOUL_QUANT_DERIV_APP_ID" not in text
+    assert "--url" not in text
+    assert "--otp" not in text
