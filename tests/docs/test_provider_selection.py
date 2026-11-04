@@ -109,3 +109,26 @@ def test_twelve_data_inquiry_is_an_unsent_fail_closed_draft() -> None:
     assert "Do not send" in draft
     assert "models" in draft
     assert "backups" in draft
+
+
+def test_federal_reserve_is_approved_public_domain() -> None:
+    evaluation = _read(REPO_ROOT / "docs/data/provider-evaluation-federal-reserve.md")
+    candidates = _read(CANDIDATES)
+    decision = _read(DECISION)
+
+    assert "APROBADO BAJO DOMINIO PÚBLICO" in evaluation
+    assert "public domain" in evaluation
+    assert "17 U.S.C. § 105" in evaluation
+    assert "Reserva Federal" in candidates
+    assert "DOMINIO PÚBLICO" in candidates
+    assert "ADR-008" in decision
+
+
+def test_bank_of_england_is_conditional_blocked() -> None:
+    evaluation = _read(REPO_ROOT / "docs/data/provider-evaluation-bank-of-england.md")
+    candidates = _read(CANDIDATES)
+
+    assert "CONDICIONAL / BLOQUEADO" in evaluation
+    assert "Open Government Licence" in evaluation
+    assert "selected exchange rate data" in evaluation
+    assert "Bank of England" in candidates

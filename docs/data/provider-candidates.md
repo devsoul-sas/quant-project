@@ -27,13 +27,15 @@ Deriv no está en el camino crítico. No se asume autorización por accesibilida
 ## Evaluación de la shortlist
 
 Cada candidato fue evaluado con la [plantilla](provider-evaluation-template.md) contra sus
-fuentes oficiales. Hasta 2026-11-04 ninguno estaba aprobado; el BCE es el primero en superar
-la licencia, pero solo habilita estrategia FX diaria (no ticks ni opciones). `CONDICIONAL`
+fuentes oficiales. El BCE (licencia permisiva) y la Reserva Federal H.10 (dominio público)
+están aprobados para FX diaria; ninguno desbloquea ticks/opciones. `CONDICIONAL`
 tampoco autoriza ingestión.
 
 | Candidato | Subyacentes | Documento oficial a revisar | Estado |
 |-----------|-------------|------------------------------|--------|
 | BCE (Banco Central Europeo) | forex (fixings diarios frente al euro, ~30 monedas) | [evaluación formal](provider-evaluation-ecb.md) | **APROBADO BAJO LICENCIA PERMISIVA** — free use con atribución; restricción de producto: solo diario, sin bid/ask |
+| Reserva Federal (H.10) | forex (noon buying rates diarios contra el USD, ~30 monedas) | [evaluación formal](provider-evaluation-federal-reserve.md) | **APROBADO BAJO DOMINIO PÚBLICO** — 17 U.S.C. § 105; cita al Board; segunda fuente independiente para validar EURGBP |
+| Bank of England | forex (daily spot rates against Sterling, GBP base) | [evaluación formal](provider-evaluation-bank-of-england.md) | **CONDICIONAL / BLOQUEADO** — OGL v3.0, pero "selected exchange rate data" excluida (reproducida bajo licencia de terceros) |
 | Dukascopy | forex, índices, materias primas, cripto (tick/OHLC) | [evaluación formal](provider-evaluation-dukascopy.md) | **RECHAZADO** — uso personal/no comercial; prohíbe bases de datos y automatización sin consentimiento |
 | Binance | cripto (market data pública/histórica) | [evaluación formal](provider-evaluation-binance.md) | **RECHAZADO** — Binance Vision es CC BY-NC-SA; todo uso comercial requiere licencia empresarial escrita y SaaS/feeds comerciales están prohibidos |
 | Alpha Vantage | acciones, forex, cripto | [evaluación formal](provider-evaluation-alpha-vantage.md) | **RECHAZADO BAJO TÉRMINOS ESTÁNDAR** — solo personal/no comercial; acuerdo escrito requerido |
@@ -46,7 +48,8 @@ una orden/licencia escrita que cierre los criterios desconocidos.
 
 ## Conclusión operativa
 
-Mientras no exista un proveedor con derechos explícitos, la decisión se mantiene en
-`NO_PROVIDER_APPROVED` y la investigación continúa provider-independiente con datos
-sintéticos propios (ADR-006). La adopción de cualquier candidato exige revisión
-jurídica antes de redistribución a socios o uso SaaS.
+Dos proveedores con derechos explícitos están aprobados para FX diaria: el BCE (licencia
+permisiva) y la Reserva Federal H.10 (dominio público). El H.10 sirve como segunda fuente
+independiente para validar la señal EURGBP (ADR-008). Para ticks/opciones no existe fuente
+permisiva y se mantiene el bloqueo. La adopción de cualquier candidato para redistribución a
+socios o uso SaaS exige revisión jurídica previa.
