@@ -205,3 +205,60 @@ def test_repeated_evaluation_is_byte_identical() -> None:
     assert json.dumps(first.to_dict(), sort_keys=True) == json.dumps(
         second.to_dict(), sort_keys=True
     )
+
+
+def _balanced_folds() -> tuple[tuple[TrialOutcome, ...], ...]:
+    trials = tuple(_enter(Outcome.WIN if i < 30 else Outcome.LOSS) for i in range(60))
+    return (trials,)
+
+
+def test_default_confidence_interval_contains_coin_flip() -> None:
+    report = evaluate(
+        folds=_balanced_folds(),
+        evidence_mode=EvidenceMode.TICK_PROXY_BACKTEST,
+        seed=1,
+    )
+
+    assert report.bootstrap_interval is not None
+    assert report.bootstrap_interval.lower < Decimal("0.50")
+    assert report.bootstrap_interval.upper > Decimal("0.50")
+
+
+def test_higher_confidence_widens_bootstrap_interval() -> None:
+    tight = evaluate(
+        folds=_balanced_folds(),
+        evidence_mode=EvidenceMode.TICK_PROXY_BACKTEST,
+        seed=1,
+        confidence=Decimal("0.80"),
+    )
+    wide = evaluate(
+        folds=_balanced_folds(),
+        evidence_mode=EvidenceMode.TICK_PROXY_BACKTEST,
+        seed=1,
+        confidence=Decimal("0.99"),
+    )
+
+    assert tight.bootstrap_interval is not None and wide.bootstrap_interval is not None
+    assert wide.bootstrap_interval.lower <= tight.bootstrap_interval.lower
+    assert wide.bootstrap_interval.upper >= tight.bootstrap_interval.upper
+
+
+@pytest.mark.parametrize("bad", [Decimal("0"), Decimal("1"), Decimal("-0.1"), Decimal("NaN")])
+def test_evaluate_rejects_invalid_confidence(bad: Decimal) -> None:
+    with pytest.raises(InvalidEvaluation, match="confidence"):
+        evaluate(
+            folds=((_enter(Outcome.WIN), _enter(Outcome.LOSS)),),
+            evidence_mode=EvidenceMode.TICK_PROXY_BACKTEST,
+            seed=1,
+            confidence=bad,
+        )
+
+
+def test_evaluate_rejects_invalid_resamples() -> None:
+    with pytest.raises(InvalidEvaluation, match="resamples"):
+        evaluate(
+            folds=((_enter(Outcome.WIN), _enter(Outcome.LOSS)),),
+            evidence_mode=EvidenceMode.TICK_PROXY_BACKTEST,
+            seed=1,
+            resamples=1,
+        )

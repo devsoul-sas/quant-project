@@ -20,6 +20,8 @@ from devsoul_quant.domain.replay import EconomyProvenance
 from devsoul_quant.domain.strategy import mean_reversion_decision, momentum_window_decision
 from devsoul_quant.domain.validation import TemporalSplitSpec, split_ticks
 
+EDGE_ALPHA = Decimal("0.05")
+
 
 class InvalidEdgeSearch(ValueError):
     """Raised when an edge-search configuration is malformed."""
@@ -39,14 +41,29 @@ class EdgeCandidate:
     bootstrap_upper: Decimal | None
     holdout_hash: str
     run_id: str
+    n_tests: int = 1
+    confidence: Decimal = Decimal("0.95")
 
     @property
     def has_edge(self) -> bool:
-        """Whether the bootstrap lower bound sits strictly above coin-flip.
+        """Whether the family-wise bootstrap lower bound sits above coin-flip.
 
         This is a directional heuristic, NOT a profitability claim.
         """
         return self.bootstrap_lower is not None and self.bootstrap_lower > Decimal("0.50")
+
+
+def family_wise_confidence(n_tests: int, alpha: Decimal) -> Decimal:
+    """Bonferroni-adjusted per-test confidence for a scan of n_tests configs."""
+    if type(n_tests) is not int or n_tests < 1:
+        raise InvalidEdgeSearch("n_tests must be a positive integer")
+    if (
+        not isinstance(alpha, Decimal)
+        or not alpha.is_finite()
+        or not (Decimal(0) < alpha < Decimal(1))
+    ):
+        raise InvalidEdgeSearch("alpha must be a finite Decimal strictly between 0 and 1")
+    return Decimal(1) - alpha / Decimal(n_tests)
 
 
 def _strategy_for(name: str, lookback: int) -> StrategyDecision:
@@ -69,8 +86,14 @@ def search_daily_edges(
     durations: tuple[int, ...],
     spread_fractions: tuple[Decimal, ...],
     run_id_prefix: str = "ecb-edge",
+    alpha: Decimal = EDGE_ALPHA,
+    resamples: int = 200,
 ) -> tuple[EdgeCandidate, ...]:
-    """Scan strategy configurations on observed ECB ticks and score directionality."""
+    """Scan strategy configurations on observed ECB ticks and score directionality.
+
+    Each candidate is scored with a Bonferroni-adjusted bootstrap interval so that
+    a scan over many configurations does not inflate the false-discovery rate.
+    """
     if not strategies or not lookbacks or not durations or not spread_fractions:
         raise InvalidEdgeSearch(
             "edge search requires at least one strategy, lookback, duration, and spread"
@@ -79,6 +102,9 @@ def search_daily_edges(
         raise InvalidEdgeSearch("lookbacks must be positive integers")
     if any(type(value) is not int or value < 1 for value in durations):
         raise InvalidEdgeSearch("durations must be positive integers")
+
+    n_tests = len(strategies) * len(lookbacks) * len(durations) * len(spread_fractions)
+    confidence = family_wise_confidence(n_tests, alpha)
 
     decision = decide_persistent_use(manifest, require_derived_artifacts=True)
     if decision.decision is not PersistentUseDecision.ALLOW:
@@ -105,6 +131,8 @@ def search_daily_edges(
                         decision_history=lookback + 1,
                         cost=ExecutionCostModel(spread_fraction=spread),
                         symbol=symbol,
+                        confidence=confidence,
+                        resamples=resamples,
                     )
                     candidates.append(
                         EdgeCandidate(
@@ -126,6 +154,8 @@ def search_daily_edges(
                             ),
                             holdout_hash=split.holdout.holdout_hash,
                             run_id=run_id,
+                            n_tests=n_tests,
+                            confidence=confidence,
                         )
                     )
     return tuple(candidates)

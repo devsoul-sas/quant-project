@@ -4,6 +4,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL = REPO_ROOT / "docs" / "research" / "economic-protocol.md"
+RESULTS = REPO_ROOT / "docs" / "research" / "edge-search-results.md"
 
 
 def _read() -> str:
@@ -40,3 +41,22 @@ def test_economic_protocol_models_transaction_cost() -> None:
     assert "fricción" in text
     assert "mid-point" in text
     assert "sin bid/ask" in text
+
+
+def test_economic_protocol_documents_multiple_testing_correction() -> None:
+    text = _read()
+
+    assert "Bonferroni" in text
+    assert "n_tests" in text
+    assert "falsos descubrimientos" in text
+
+
+def test_edge_search_results_exist_and_stay_non_promotable() -> None:
+    assert RESULTS.is_file()
+    text = RESULTS.read_text(encoding="utf-8")
+
+    assert "preliminar" in text
+    assert "NOT_ELIGIBLE" in text
+    assert "profitability_claim = False" in text
+    assert "EURGBP" in text
+    assert "mean-reversion" in text

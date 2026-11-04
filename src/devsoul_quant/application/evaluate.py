@@ -83,6 +83,8 @@ def evaluate_split(
     decision_history: int = 2,
     cost: ExecutionCostModel | None = None,
     symbol: str = DEFAULT_SYMBOL,
+    confidence: Decimal = Decimal("0.95"),
+    resamples: int = 200,
 ) -> EvaluationReport:
     """Evaluate a temporal split fold by fold and aggregate directional evidence."""
     folds = tuple(
@@ -97,4 +99,10 @@ def evaluate_split(
         )
         for fold in split.folds
     )
-    return evaluate(folds=folds, evidence_mode=evidence_mode, seed=seed)
+    return evaluate(
+        folds=folds,
+        evidence_mode=evidence_mode,
+        seed=seed,
+        confidence=confidence,
+        resamples=resamples,
+    )

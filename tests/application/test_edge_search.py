@@ -10,6 +10,7 @@ from devsoul_quant.application.ecb_backtest import UnapprovedEcbSource
 from devsoul_quant.application.edge_search import (
     EdgeCandidate,
     InvalidEdgeSearch,
+    family_wise_confidence,
     search_daily_edges,
 )
 from devsoul_quant.domain.data_rights import DataSourceKind, build_manifest
@@ -177,3 +178,39 @@ def test_search_daily_edges_fails_closed_on_unapproved_manifest() -> None:
             durations=(3,),
             spread_fractions=(Decimal("0"),),
         )
+
+
+def test_family_wise_confidence_applies_bonferroni() -> None:
+    assert family_wise_confidence(1, Decimal("0.05")) == Decimal("0.95")
+    assert family_wise_confidence(2, Decimal("0.05")) == Decimal("0.975")
+    assert family_wise_confidence(120, Decimal("0.05")) == (
+        Decimal(1) - Decimal("0.05") / Decimal(120)
+    )
+
+
+def test_family_wise_confidence_rejects_invalid_inputs() -> None:
+    with pytest.raises(InvalidEdgeSearch, match="n_tests"):
+        family_wise_confidence(0, Decimal("0.05"))
+    with pytest.raises(InvalidEdgeSearch, match="alpha"):
+        family_wise_confidence(1, Decimal("1.5"))
+
+
+def test_search_daily_edges_records_family_wise_correction() -> None:
+    manifest = build_ecb_manifest(retrieved_at=1_760_000_000)
+
+    candidates = search_daily_edges(
+        csv_text=_make_csv(60),
+        currency="USD",
+        manifest=manifest,
+        split_spec=_split(),
+        seed=7,
+        strategies=("momentum", "mean-reversion"),
+        lookbacks=(1, 2),
+        durations=(3,),
+        spread_fractions=(Decimal("0"), Decimal("0.0001")),
+    )
+
+    assert len(candidates) == 8
+    expected = Decimal(1) - Decimal("0.05") / Decimal(8)
+    assert all(candidate.n_tests == 8 for candidate in candidates)
+    assert all(candidate.confidence == expected for candidate in candidates)

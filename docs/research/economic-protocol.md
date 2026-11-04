@@ -34,14 +34,17 @@ conservador).
 ## Métrica objetivo
 
 Hit rate direccional neto de fricción, agregado por walk-forward (folds no
-solapados), con intervalo bootstrap por bloques al 95%.
+solapados), con intervalo bootstrap por bloques. El nivel de confianza del
+intervalo se ajusta por Bonferroni para el número de configuraciones probadas
+(`confidence = 1 − alpha/n_tests`), de modo que un barrido amplio no infle la
+tasa de falsos descubrimientos.
 
 ## Criterio de decisión (edge)
 
 Una configuración se considera "con señal" solo si el límite inferior del
-intervalo bootstrap supera estrictamente `0.50` con fricción aplicada. Es una
-heurística direccional, NO una métrica de rentabilidad: no implica P/L positivo
-ni habilita operar dinero real.
+intervalo bootstrap ajustado por Bonferroni supera estrictamente `0.50` con
+fricción aplicada. Es una heurística direccional, NO una métrica de rentabilidad:
+no implica P/L positivo ni habilita operar dinero real.
 
 ## Regla del holdout
 
@@ -62,9 +65,12 @@ Abrirlo antes o reutilizarlo invalida la inferencia.
 - `real_money = EXCLUDED` por construcción.
 - Ninguna configuración sin edge se promociona ni se opera.
 
-## Resultado esperado (registrado antes de correr)
+## Resultado (2026-11-04)
 
-El momentum y la mean-reversion diarios sobre fixings de FX rara vez superan el
-costo transaccional; lo más probable es que ninguna configuración simple supere
-el criterio. Un resultado "sin edge" es válido: protege el capital y no se
-interpreta como fallo del pipeline.
+El barrido sobre EURUSD, EURJPY, EURGBP y EURCHF (480 configuraciones) no
+encontró señal en EURUSD ni EURJPY. EURGBP concentra una señal preliminar de
+mean-reversion de medio plazo (lookback 10, duración 5), estable entre folds y
+robusta al seed, que sobrevive 1 pip pero no 10 pips de fricción. Ver
+[edge-search-results.md](edge-search-results.md): es preliminar, NO promocionable
+y NO operable, por depender de un fixing mid-point no ejecutable y carecer de
+validación con fuente independiente.

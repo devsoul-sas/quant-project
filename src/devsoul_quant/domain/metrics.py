@@ -129,6 +129,7 @@ def _block_bootstrap(
     *,
     block_size: int = 2,
     resamples: int = 200,
+    confidence: Decimal = Decimal("0.95"),
 ) -> BootstrapInterval:
     random = Random(seed)
     total = len(hits)
@@ -145,8 +146,9 @@ def _block_bootstrap(
                 drawn += 1
         estimates.append(Decimal(sum(sample_hits)) / Decimal(total))
     sorted_estimates = sorted(estimates)
-    lower = sorted_estimates[int(0.025 * (len(sorted_estimates) - 1))]
-    upper = sorted_estimates[int(0.975 * (len(sorted_estimates) - 1))]
+    tail = (Decimal(1) - confidence) / Decimal(2)
+    lower = sorted_estimates[int(tail * (len(sorted_estimates) - 1))]
+    upper = sorted_estimates[int((Decimal(1) - tail) * (len(sorted_estimates) - 1))]
     return BootstrapInterval(lower=_round(lower, 4), upper=_round(upper, 4))
 
 
@@ -156,10 +158,18 @@ def evaluate(
     evidence_mode: EvidenceMode,
     seed: int,
     bootstrap_block_size: int = 2,
+    confidence: Decimal = Decimal("0.95"),
+    resamples: int = 200,
 ) -> EvaluationReport:
     """Evaluate directional behavior only; economic metrics are never produced."""
     if type(bootstrap_block_size) is not int or bootstrap_block_size < 1:
         raise InvalidEvaluation("bootstrap_block_size must be a positive integer")
+    if not isinstance(confidence, Decimal) or not confidence.is_finite():
+        raise InvalidEvaluation("confidence must be a finite Decimal")
+    if not (Decimal(0) < confidence < Decimal(1)):
+        raise InvalidEvaluation("confidence must be strictly between 0 and 1")
+    if type(resamples) is not int or resamples < 2:
+        raise InvalidEvaluation("resamples must be an integer of at least two")
     if not folds:
         raise InvalidEvaluation("evaluation requires at least one fold")
     all_trials = [trial for fold in folds for trial in fold]
@@ -208,7 +218,15 @@ def evaluate(
 
     hits = [trial.outcome is Outcome.WIN for trial in entered]
     bootstrap_interval = (
-        _block_bootstrap(hits, seed, block_size=bootstrap_block_size) if hits else None
+        _block_bootstrap(
+            hits,
+            seed,
+            block_size=bootstrap_block_size,
+            confidence=confidence,
+            resamples=resamples,
+        )
+        if hits
+        else None
     )
 
     return EvaluationReport(
