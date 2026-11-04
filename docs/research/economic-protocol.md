@@ -1,0 +1,70 @@
+# Protocolo económico — búsqueda de edge en FX diario (BCE)
+
+- Estado: aceptada
+- Fecha: 2026-11-04
+- Congela: [ADR-007](../adr/ADR-007-ecb-daily-fx-source.md)
+
+## Propósito
+
+Definir, antes de observar el holdout sellado, el protocolo que convierte la
+evidencia direccional en una decisión. Nada aquí afirma rentabilidad: las
+métricas son direccionales y el costo se modela como fricción, no como P/L
+monetario.
+
+## Universo de hipótesis (congelado)
+
+Estrategias diarias sobre el fixing del BCE (mid-point, EUR base):
+
+1. Momentum con ventana N: CALL si el último fixing supera al de hace N días,
+   PUT si cae.
+2. Mean-reversion con ventana N: desvanecer el movimiento (CALL en caída, PUT en
+   subida).
+
+Grid explorado: lookback N en {1, 2, 5, 10, 20}, duración D en {1, 5, 10, 20}
+días.
+
+## Modelo de costos
+
+El fixing es mid-point sin bid/ask ejecutable. Cada entrada paga un spread
+relativo `s` sobre el precio de entrada; un movimiento direccional solo cuenta
+como acierto neto si supera `s`. Escenarios de spread: `0` (sin fricción, cota
+superior teórica), `0.0001` (~1 pip, referencia EURUSD), `0.001` (fricción alta,
+conservador).
+
+## Métrica objetivo
+
+Hit rate direccional neto de fricción, agregado por walk-forward (folds no
+solapados), con intervalo bootstrap por bloques al 95%.
+
+## Criterio de decisión (edge)
+
+Una configuración se considera "con señal" solo si el límite inferior del
+intervalo bootstrap supera estrictamente `0.50` con fricción aplicada. Es una
+heurística direccional, NO una métrica de rentabilidad: no implica P/L positivo
+ni habilita operar dinero real.
+
+## Regla del holdout
+
+El holdout final permanece sellado (se registran solo su hash y su conteo de
+ticks). Se abre una única vez, después de:
+
+1. congelar un `StrategyRelease` (estrategia + features + política de riesgo con
+   hash), y
+2. que la configuración supere el criterio de edge en los folds de walk-forward.
+
+Abrirlo antes o reutilizarlo invalida la inferencia.
+
+## Invariantes que permanecen
+
+- `promotion_eligibility = NOT_ELIGIBLE` hasta que exista evidencia fuera de
+  muestra que supere el criterio.
+- `profitability_claim = False` en todo reporte.
+- `real_money = EXCLUDED` por construcción.
+- Ninguna configuración sin edge se promociona ni se opera.
+
+## Resultado esperado (registrado antes de correr)
+
+El momentum y la mean-reversion diarios sobre fixings de FX rara vez superan el
+costo transaccional; lo más probable es que ninguna configuración simple supere
+el criterio. Un resultado "sin edge" es válido: protege el capital y no se
+interpreta como fallo del pipeline.

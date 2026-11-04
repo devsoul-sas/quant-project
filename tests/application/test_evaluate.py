@@ -7,10 +7,12 @@ import pytest
 from devsoul_quant.application.build_dataset import build_dataset
 from devsoul_quant.application.evaluate import evaluate_split, trials_from_ticks
 from devsoul_quant.application.prepare_validation import prepare_validation
+from devsoul_quant.domain.contracts import ContractAction, NoTradeIntent
+from devsoul_quant.domain.costs import ExecutionCostModel
 from devsoul_quant.domain.data_rights import DataRightsManifest, DataSourceKind, build_manifest
 from devsoul_quant.domain.datasets import GENERATOR_VERSION, SCHEMA_VERSION, DatasetSpec
 from devsoul_quant.domain.metrics import EvidenceMode, PromotionEligibility
-from devsoul_quant.domain.replay import Tick
+from devsoul_quant.domain.replay import Outcome, Tick
 from devsoul_quant.domain.synthetic import generate_ticks
 from devsoul_quant.domain.validation import TemporalSplitSpec
 
@@ -107,3 +109,44 @@ def test_evaluate_split_is_deterministic_and_non_economic() -> None:
     assert first.decisions > 0
     assert first.economic_metrics_available is False
     assert first.promotion_eligibility is PromotionEligibility.NOT_ELIGIBLE
+
+
+def _never_trade(
+    *, history: object, duration: object, amount_requested: object, symbol: object
+) -> NoTradeIntent:
+    return NoTradeIntent(action=ContractAction.NO_TRADE, strategy_reason="never")
+
+
+def test_trials_from_ticks_uses_injected_strategy() -> None:
+    ticks = generate_ticks(seed=42, count=8)
+
+    trials = trials_from_ticks(ticks=ticks, duration=3, strategy=_never_trade)
+
+    assert trials
+    assert all(trial.decision is ContractAction.NO_TRADE for trial in trials)
+
+
+def test_trials_from_ticks_applies_execution_cost() -> None:
+    ticks = (
+        Tick(epoch=1, quote=Decimal("1.0000")),
+        Tick(epoch=2, quote=Decimal("1.0100")),
+        Tick(epoch=3, quote=Decimal("1.0000")),
+        Tick(epoch=4, quote=Decimal("1.0050")),
+    )
+
+    raw = trials_from_ticks(ticks=ticks, duration=1)
+    net = trials_from_ticks(
+        ticks=ticks,
+        duration=1,
+        cost=ExecutionCostModel(Decimal("0.01")),
+    )
+
+    assert raw[0].outcome is Outcome.WIN
+    assert net[0].outcome is Outcome.LOSS
+
+
+def test_trials_from_ticks_rejects_invalid_decision_history() -> None:
+    ticks = generate_ticks(seed=42, count=8)
+
+    with pytest.raises(ValueError, match="decision_history"):
+        trials_from_ticks(ticks=ticks, duration=3, decision_history=1)

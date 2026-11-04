@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from devsoul_quant.adapters.ecb.ingest import load_ecb_batch
-from devsoul_quant.application.evaluate import evaluate_split
+from devsoul_quant.application.evaluate import StrategyDecision, evaluate_split
+from devsoul_quant.domain.costs import ExecutionCostModel
 from devsoul_quant.domain.data_rights import (
     DataRightsManifest,
     PersistentUseDecision,
@@ -13,6 +14,7 @@ from devsoul_quant.domain.data_rights import (
 )
 from devsoul_quant.domain.metrics import EvaluationReport, EvidenceMode
 from devsoul_quant.domain.replay import EconomyProvenance
+from devsoul_quant.domain.strategy import momentum_decision
 from devsoul_quant.domain.validation import TemporalSplitSpec, split_ticks
 
 
@@ -41,6 +43,9 @@ def run_ecb_daily_backtest(
     duration: int = 5,
     seed: int = 42,
     run_id: str = "ecb-daily",
+    strategy: StrategyDecision = momentum_decision,
+    decision_history: int = 2,
+    cost: ExecutionCostModel | None = None,
 ) -> EcbDailyBacktestResult:
     """Run a daily quote-replay backtest over observed ECB reference rates.
 
@@ -55,6 +60,7 @@ def run_ecb_daily_backtest(
         )
 
     batch = load_ecb_batch(text=csv_text, currency=currency, manifest=manifest)
+    symbol = f"EUR{currency}"
     split_result = split_ticks(spec=split, ticks=batch.ticks, run_id=run_id)
     evaluation = evaluate_split(
         split=split_result,
@@ -62,10 +68,14 @@ def run_ecb_daily_backtest(
         seed=seed,
         duration=duration,
         economy=EconomyProvenance.OBSERVED,
+        strategy=strategy,
+        decision_history=decision_history,
+        cost=cost,
+        symbol=symbol,
     )
     return EcbDailyBacktestResult(
         data_source="ecb",
-        symbol=f"EUR{currency}",
+        symbol=symbol,
         tick_count=len(batch.ticks),
         holdout_hash=split_result.holdout.holdout_hash,
         holdout_tick_count=split_result.holdout.tick_count,
