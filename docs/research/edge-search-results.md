@@ -45,12 +45,19 @@ La señal más fuerte es mean-reversion con lookback 10 y duración 5 (sin sprea
 El patrón es coherente (mean-reversion de medio plazo, horizonte 5–10 días),
 no un outlier aislado del barrido.
 
-## Caveats (por qué esto NO es un edge confirmado)
+## Validación independiente posterior
+
+La hipótesis preregistrada (mean-reversion, lookback 10, duración 5, 1 pip) fue
+replicada sobre el fixing independiente de la Reserva Federal H.10: hit 0.5475,
+bootstrap 95 % [0.5161, 0.5822], con los cinco folds sobre 0.50. Ver
+[fed-h10-confirmation-results.md](fed-h10-confirmation-results.md).
+
+## Caveats (por qué todavía NO es un edge económico)
 
 1. El fixing del BCE es mid-point sin bid/ask ejecutable; un artefacto de
    redondeo o de convención del fixing podría producir reversión espuria.
-2. La evidencia proviene de una sola fuente (BCE); no hay validación con una
-   fuente independiente de precios FX.
+2. La réplica H.10 reduce el riesgo de artefacto de fixing, pero ambos datasets
+   siguen siendo tasas de referencia sin bid/ask ejecutable.
 3. El holdout sellado sigue sin abrirse; abrirlo exige congelar un
    `StrategyRelease` y solo puede hacerse una vez.
 4. El efecto neto es de pocos pips y no se ha contrastado contra costos reales
@@ -58,8 +65,8 @@ no un outlier aislado del barrido.
 
 ## Conclusión
 
-Existe una señal preliminar de mean-reversion en EURGBP, estable en el tiempo y
-robusta al seed, pero no verificable como edge económico sin (a) una fuente
-independiente y (b) la apertura del holdout tras congelar la estrategia. No se
+Existe una señal direccional de mean-reversion en EURGBP, estable en el tiempo y
+replicada en una fuente independiente. Todavía no es un edge económico: pasa
+con 1–2 pips, pero no con 5, y faltan spread, slippage y rollover reales. No se
 promociona ni se opera: `promotion_eligibility = NOT_ELIGIBLE` y
 `profitability_claim = False` siguen vigentes.

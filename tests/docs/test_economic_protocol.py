@@ -5,6 +5,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL = REPO_ROOT / "docs" / "research" / "economic-protocol.md"
 RESULTS = REPO_ROOT / "docs" / "research" / "edge-search-results.md"
+CONFIRMATION = REPO_ROOT / "docs" / "research" / "fed-h10-confirmation-results.md"
 
 
 def _read() -> str:
@@ -60,3 +61,16 @@ def test_edge_search_results_exist_and_stay_non_promotable() -> None:
     assert "profitability_claim = False" in text
     assert "EURGBP" in text
     assert "mean-reversion" in text
+
+
+def test_fed_confirmation_records_replication_without_promotion() -> None:
+    assert CONFIRMATION.is_file()
+    text = CONFIRMATION.read_text(encoding="utf-8")
+
+    assert "0.5475" in text
+    assert "0.5161" in text
+    assert "holdout" in text
+    assert "abierto: **No**" in text
+    assert "NOT_ELIGIBLE" in text
+    assert "NO promocionable, NO operable" in text
+    assert "rollover" in text

@@ -72,5 +72,17 @@ encontró señal en EURUSD ni EURJPY. EURGBP concentra una señal preliminar de
 mean-reversion de medio plazo (lookback 10, duración 5), estable entre folds y
 robusta al seed, que sobrevive 1 pip pero no 10 pips de fricción. Ver
 [edge-search-results.md](edge-search-results.md): es preliminar, NO promocionable
-y NO operable, por depender de un fixing mid-point no ejecutable y carecer de
-validación con fuente independiente.
+y NO operable en esta etapa, por depender de un fixing mid-point no ejecutable.
+
+## Confirmación independiente (2026-11-04)
+
+La hipótesis EURGBP mean-reversion L=10/D=5 fue preregistrada y probada una sola
+vez en la Reserva Federal H.10, sin repetir el grid. Con 1 pip obtuvo hit 0.5475
+e intervalo bootstrap 95 % [0.5161, 0.5822], con los cinco folds sobre 0.50.
+Confirma hasta 2 pips, pero no a 5 pips. Ver
+[fed-h10-confirmation-results.md](fed-h10-confirmation-results.md).
+
+El holdout permanece sellado. Antes de congelar el `StrategyRelease` y abrirlo,
+se exige un modelo de costos ejecutables del broker (spread, slippage y
+rollover/swap para cinco días). La replicación es señal direccional, no evidencia
+de rentabilidad.
