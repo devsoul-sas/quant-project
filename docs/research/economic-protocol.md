@@ -83,6 +83,9 @@ Confirma hasta 2 pips, pero no a 5 pips. Ver
 [fed-h10-confirmation-results.md](fed-h10-confirmation-results.md).
 
 El holdout permanece sellado. Antes de congelar el `StrategyRelease` y abrirlo,
-se exige un modelo de costos ejecutables del broker (spread, slippage y
-rollover/swap para cinco días). La replicación es señal direccional, no evidencia
-de rentabilidad.
+se exige economía ejecutable del producto elegido. Como fija
+[ADR-009](../adr/ADR-009-eurgbp-execution-economics.md), una opción Deriv CALL/PUT
+usa `ask_price`, `payout`, barrera y expiración (no rollover spot); un producto
+spot/CFD sí requiere spread, slippage, comisión y rollover/swap para cinco días.
+Ninguna ruta está aún habilitada para promoción. La replicación es señal
+direccional, no evidencia de rentabilidad.

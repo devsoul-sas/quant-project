@@ -71,6 +71,29 @@ def test_observed_contract_proposal_accepts_complete_matching_economics() -> Non
 
     assert proposal.ask_price is not None
     assert proposal.ask_price.amount == Decimal("1.00")
+    assert proposal.binary_option_economics().break_even_hit_rate == Decimal("1.00") / Decimal(
+        "1.80"
+    )
+
+
+def test_contract_proposal_economics_fail_closed() -> None:
+    unavailable = ContractProposal(
+        proposal_id="proposal-1",
+        economy=EconomyProvenance.UNAVAILABLE,
+        ask_price=None,
+        payout=None,
+    )
+
+    with pytest.raises(InvalidProposal, match="unavailable"):
+        unavailable.binary_option_economics()
+
+    with pytest.raises(InvalidProposal, match="payout"):
+        ContractProposal(
+            proposal_id="proposal-2",
+            economy=EconomyProvenance.OBSERVED,
+            ask_price=Money(Decimal("1.00"), "USD"),
+            payout=Money(Decimal("1.00"), "USD"),
+        )
 
 
 def test_broker_envelopes_reject_blank_or_invalid_identifiers() -> None:

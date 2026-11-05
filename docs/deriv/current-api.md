@@ -68,6 +68,17 @@ PAT es apropiado para el laboratorio interno si tiene privilegio mínimo y se ma
 
 ## Operaciones públicas
 
+### WebSocket público actual
+
+La documentación oficial actual expone sin auth/OTP:
+
+`wss://api.derivws.com/trading/v1/options/ws/public`
+
+El 2026-11-05 se hizo un probe efímero de capacidad: `active_symbols` confirmó
+`frxEURGBP` y `contracts_for` confirmó CALL/PUT con duraciones de 1 a 365 días.
+Esto valida capacidad técnica para cinco días, no economía ni autorización para
+persistir propuestas. No se solicitó proposal y no se retuvo el payload.
+
 ### `active_symbols`
 
 Request mínimo:

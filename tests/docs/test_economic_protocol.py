@@ -6,6 +6,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL = REPO_ROOT / "docs" / "research" / "economic-protocol.md"
 RESULTS = REPO_ROOT / "docs" / "research" / "edge-search-results.md"
 CONFIRMATION = REPO_ROOT / "docs" / "research" / "fed-h10-confirmation-results.md"
+EXECUTION_ADR = REPO_ROOT / "docs" / "adr" / "ADR-009-eurgbp-execution-economics.md"
 
 
 def _read() -> str:
@@ -74,3 +75,16 @@ def test_fed_confirmation_records_replication_without_promotion() -> None:
     assert "NOT_ELIGIBLE" in text
     assert "NO promocionable, NO operable" in text
     assert "rollover" in text
+
+
+def test_execution_economics_separate_options_from_spot_costs() -> None:
+    assert EXECUTION_ADR.is_file()
+    text = EXECUTION_ADR.read_text(encoding="utf-8")
+
+    assert "ask_price / payout" in text
+    assert "p * payout - ask_price" in text
+    assert "spread" in text
+    assert "rollover" in text
+    assert "holdout BCE permanece sellado" in text
+    assert "NOT_ELIGIBLE" in text
+    assert "real_money = EXCLUDED" in text

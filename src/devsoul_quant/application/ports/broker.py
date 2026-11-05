@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from devsoul_quant.domain.contracts import EnterContractIntent, ExitContractIntent
+from devsoul_quant.domain.costs import BinaryOptionEconomics, InvalidCostModel
 from devsoul_quant.domain.money import Money
 from devsoul_quant.domain.replay import EconomyProvenance
 
@@ -36,6 +37,22 @@ class ContractProposal:
             raise InvalidProposal("observed or estimated economics must be complete")
         if self.ask_price.currency != self.payout.currency:
             raise InvalidProposal("proposal economics must use one currency")
+        try:
+            BinaryOptionEconomics(
+                ask_price=self.ask_price.amount,
+                payout=self.payout.amount,
+            )
+        except InvalidCostModel as error:
+            raise InvalidProposal(f"invalid proposal payout: {error}") from error
+
+    def binary_option_economics(self) -> BinaryOptionEconomics:
+        """Return complete fixed-payout economics or fail closed."""
+        if self.ask_price is None or self.payout is None:
+            raise InvalidProposal("proposal economics are unavailable")
+        return BinaryOptionEconomics(
+            ask_price=self.ask_price.amount,
+            payout=self.payout.amount,
+        )
 
 
 @dataclass(frozen=True, slots=True)

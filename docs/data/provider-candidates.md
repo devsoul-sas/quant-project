@@ -1,7 +1,8 @@
 # Candidatos a proveedor de datos
 
-Estado: sin proveedor aprobado. Esta matriz registra únicamente lo confirmado contra
-términos oficiales; las celdas vacías son desconocidas y bloquean la adopción.
+Estado: BCE y Federal Reserve H.10 aprobados para FX diario; ejecución y costos
+observados permanecen bloqueados. Esta matriz registra únicamente lo confirmado
+contra términos oficiales; las celdas vacías son desconocidas y bloquean la adopción.
 
 ## Hallazgo estructural (verificado por diseño, no por términos)
 
@@ -23,6 +24,9 @@ esos subyacentes y, más adelante, puede mapearse de vuelta a la ejecución demo
 | Revisión de solicitud | PENDING_PROVIDER_REVIEW (última notificación 2026-10-29) |
 
 Deriv no está en el camino crítico. No se asume autorización por accesibilidad del API.
+Un probe público efímero del 2026-11-05 confirmó que `frxEURGBP` ofrece CALL/PUT
+de 1–365 días. Esto solo valida compatibilidad de duración; las propuestas y sus
+derivados siguen bajo el bloqueo de retención. Ver ADR-009.
 
 ## Evaluación de la shortlist
 
