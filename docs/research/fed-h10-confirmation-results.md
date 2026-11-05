@@ -3,7 +3,7 @@
 - Fecha: 2026-11-04
 - Estado: señal direccional replicada — **NO promocionable, NO operable**
 - Fuente: Federal Reserve H.10 (dominio público, fixing de Nueva York)
-- Hipótesis preregistrada: mean-reversion EURGBP, lookback 10, duración 5,
+- Hipótesis preregistrada: mean-reversion EURGBP, lookback 10, duración 5 observaciones,
   spread relativo 0.0001 (1 pip)
 
 ## Diseño confirmatorio
@@ -69,8 +69,8 @@ test); los números que siguen son el resultado del snapshot 2026-11-04.
 | 0.0005 | 5 pips | 0.5186 | [0.4915, 0.5517] | No |
 | 0.0010 | 10 pips | 0.4949 | [0.4636, 0.5263] | No |
 
-La señal es pequeña: sobrevive hasta 2 pips, pero no 5. Para un horizonte de
-cinco días, el costo real debe incluir spread, slippage y rollover/swap; aún no
+Además, para una posición durante cinco observaciones, el costo real debe incluir
+spread, slippage y rollover/swap; aún no
 existe evidencia de que el costo total sea menor a 5 pips.
 
 ## Holdout y promoción
@@ -84,9 +84,9 @@ existe evidencia de que el costo total sea menor a 5 pips.
 - dinero real: excluido.
 
 No se congela todavía un `StrategyRelease` ni se abre el holdout. Antes debe
-existir un modelo de costos ejecutables de un broker que incluya el costo de
-mantener EURGBP cinco días. Abrir el holdout sin resolver ese gate desperdiciaría
-la única prueba final.
+existir economía ejecutable observada y autorizada para el producto elegido,
+durante una ventana equivalente a las cinco observaciones de ADR-010. Abrir el
+holdout sin resolver ese gate desperdiciaría la única prueba final.
 
 ## Conclusión
 

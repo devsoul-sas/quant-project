@@ -94,9 +94,13 @@ que la serie de spot rates concreta está cubierta por la OGL, no se adopta.
 
 ## Siguiente paso concreto
 
-Validar la señal EURGBP del BCE contra el H.10 de la Reserva Federal (segunda fuente
-independiente, dominio público), reconstruyendo EURGBP desde USD/GBP y USD/EUR del fixing de
-Nueva York. Twelve Data queda como opción futura de pago si se requiere intradía/cripto.
+La señal EURGBP ya fue replicada contra H.10. El siguiente gate es economía
+ejecutable y equivalencia temporal según ADR-009/ADR-010. Deriv permanece
+bloqueado por retención ≤24 h; IG, IBKR y OANDA fueron evaluados y ninguno quedó
+aprobado. Ver [execution-venue-evaluation.md](execution-venue-evaluation.md).
+
+El holdout permanece sellado hasta que un único producto primario tenga derechos,
+economía observada y ventana ejecutable equivalentes a la hipótesis congelada.
 
 ## Condición de cambio
 

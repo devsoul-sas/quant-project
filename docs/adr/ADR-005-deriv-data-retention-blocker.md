@@ -7,6 +7,11 @@
 
 La especificación original exige histórico propio, Parquet, experimentos reproducibles y evidencia para un socio. Los API Users Terms vigentes de Deriv, cláusulas 2.1–2.4, prohíben almacenar contenido del API y solo permiten caché hasta 24 horas.
 
+Reverificado el 2026-11-05: API Users Terms R26|03, actualizado el
+2026-10-16. Las cláusulas 2.1–2.4 mantienen la restricción; no existe excepción
+para propuestas, resultados demo o artefactos derivados. General Terms R26|03,
+2026-10-09, ubica las restricciones de copia/distribución en 16.5–16.6.
+
 ## Decisión
 
 Hasta obtener autorización escrita o cambiar de fuente:
@@ -15,6 +20,8 @@ Hasta obtener autorización escrita o cambiar de fuente:
 - no crear backups de esa caché;
 - no construir datasets históricos Deriv;
 - no afirmar que transformar datos crea un artefacto libre de la restricción;
+- no conservar proposal/contract IDs, economía, settlement, métricas o estado
+  longitudinal que enlace un contrato multidiario;
 - usar datos sintéticos propios para construir y probar el núcleo;
 - mantener el adaptador de market data detrás de un puerto;
 - tratar source licensing como requisito funcional y de seguridad.

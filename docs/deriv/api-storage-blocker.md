@@ -5,7 +5,7 @@ Detectado: 2026-09-29 UTC
 
 ## Fuente oficial
 
-API Users Terms, versión R26|03, actualizada 2026-08-14:
+API Users Terms, versión R26|03, actualizada 2026-10-16:
 
 https://deriv.com/terms-and-conditions/api-users
 
@@ -18,7 +18,7 @@ Cláusulas relevantes:
 
 Fuentes adicionales:
 
-- General Terms 15.5–15.6: permiso previo escrito para copiar/distribuir materiales.
+- General Terms 16.5–16.6: permiso previo escrito para copiar/distribuir materiales.
 - Trading Terms 6.2: redistribuir el feed o sobreutilizar recursos puede considerarse abuso.
 
 ## Impacto

@@ -18,15 +18,16 @@ esos subyacentes y, más adelante, puede mapearse de vuelta a la ejecución demo
 | Criterio | Estado |
 |----------|--------|
 | Retención de histórico | BLOQUEADO — API Terms 2.1–2.4; solo caché ≤24 h |
-| Retención de derivados | PENDIENTE — sin confirmación escrita |
+| Retención de derivados | BLOQUEADO — API Terms 2.1; sin confirmación escrita |
 | Presentación comercial | PENDIENTE |
-| Redistribución | PROHIBIDA sin permiso escrito (General Terms 15.5–15.6) |
+| Redistribución | PROHIBIDA sin permiso escrito (General Terms 16.5–16.6) |
 | Revisión de solicitud | PENDING_PROVIDER_REVIEW (última notificación 2026-10-29) |
 
 Deriv no está en el camino crítico. No se asume autorización por accesibilidad del API.
 Un probe público efímero del 2026-11-05 confirmó que `frxEURGBP` ofrece CALL/PUT
-de 1–365 días. Esto solo valida compatibilidad de duración; las propuestas y sus
-derivados siguen bajo el bloqueo de retención. Ver ADR-009.
+de 1–365 días. Esto solo valida capacidad contractual, no equivalencia entre `5d`
+calendario y cinco observaciones; propuestas y derivados siguen bloqueados. Ver
+ADR-009/ADR-010.
 
 ## Evaluación de la shortlist
 

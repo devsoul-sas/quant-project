@@ -1,7 +1,7 @@
 # Política provisional de datos del proveedor
 
 Estado: bloqueante
-Fecha: 2026-09-29 (actualización 2026-10-29)
+Fecha: 2026-09-29 (actualización 2026-11-05)
 
 ## Estado de la revisión del proveedor
 
@@ -17,7 +17,7 @@ Fuente principal:
 
 https://deriv.com/terms-and-conditions/api-users
 
-API Users Terms R26|03, actualizado 2026-08-14:
+API Users Terms R26|03, actualizado 2026-10-16:
 
 - 2.1: no almacenar contenido que derive/proceda del sitio o se obtenga mediante la API, incluido feed data;
 - 2.2: se pueden almacenar API tokens y OAuth tokens;
@@ -30,7 +30,7 @@ Fuentes adicionales:
 - https://deriv.com/terms-and-conditions/trading-terms
 - https://deriv.com/terms-and-conditions/business-partners-general-terms
 
-General Terms 15.5–15.6 requieren permiso escrito para copiar o distribuir materiales. Trading Terms 6.2 identifica la redistribución del feed y el exceso de recursos como posible abuso.
+General Terms 16.5–16.6 requieren permiso escrito para copiar o distribuir materiales. Trading Terms 6.2 identifica la redistribución del feed y el exceso de recursos como posible abuso.
 
 ## Consecuencia
 

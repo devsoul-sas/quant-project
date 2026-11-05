@@ -1,4 +1,4 @@
-# ADR-009 — Economía de ejecución EURGBP a cinco días
+# ADR-009 — Economía de ejecución EURGBP con horizonte de cinco observaciones
 
 - Estado: aceptada para investigación; promoción bloqueada
 - Fecha: 2026-11-05
@@ -6,7 +6,7 @@
 
 ## Contexto
 
-La señal confirmada usa EURGBP diario con horizonte de cinco días. BCE y Federal
+La señal confirmada usa EURGBP diario con horizonte de cinco observaciones. BCE y Federal
 Reserve H.10 son fixings de referencia y no contienen economía ejecutable.
 
 El 2026-11-05 se consultó de forma pública, efímera y sin credenciales el endpoint
@@ -15,8 +15,9 @@ oficial de Deriv Options:
 `wss://api.derivws.com/trading/v1/options/ws/public`
 
 `active_symbols` confirmó `frxEURGBP`; `contracts_for` devolvió CALL/PUT diarios con
-duración mínima 1 día y máxima 365 días. Por tanto, cinco días es técnicamente
-admisible. No se solicitó una propuesta económica ni se conservó el payload.
+duración mínima 1 día y máxima 365 días. Esto demuestra capacidad contractual,
+pero una duración `5d` calendario no equivale al horizonte causal de ADR-010. No
+se solicitó una propuesta económica ni se conservó el payload.
 
 ## Decisión
 
@@ -48,7 +49,7 @@ El holdout BCE permanece sellado. Solo podrá abrirse después de elegir una de 
 rutas y congelarla en un `StrategyRelease`:
 
 1. **Deriv Options:** autorización de retención/derivados, observaciones demo
-   forward de propuestas CALL/PUT de cinco días, protocolo de expiración y umbral
+   forward de propuestas CALL/PUT con expiración equivalente a ADR-010, protocolo de expiración y umbral
    de break-even preregistrado; o
 2. **Spot/CFD:** broker elegido, términos compatibles, especificación verificable de
    spread/slippage/comisión/swap y evidencia de paper execution.

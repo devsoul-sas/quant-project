@@ -69,7 +69,7 @@ Abrirlo antes o reutilizarlo invalida la inferencia.
 
 El barrido sobre EURUSD, EURJPY, EURGBP y EURCHF (480 configuraciones) no
 encontró señal en EURUSD ni EURJPY. EURGBP concentra una señal preliminar de
-mean-reversion de medio plazo (lookback 10, duración 5), estable entre folds y
+mean-reversion de medio plazo (lookback 10, duración 5 observaciones), estable entre folds y
 robusta al seed, que sobrevive 1 pip pero no 10 pips de fricción. Ver
 [edge-search-results.md](edge-search-results.md): es preliminar, NO promocionable
 y NO operable en esta etapa, por depender de un fixing mid-point no ejecutable.
@@ -86,6 +86,7 @@ El holdout permanece sellado. Antes de congelar el `StrategyRelease` y abrirlo,
 se exige economía ejecutable del producto elegido. Como fija
 [ADR-009](../adr/ADR-009-eurgbp-execution-economics.md), una opción Deriv CALL/PUT
 usa `ask_price`, `payout`, barrera y expiración (no rollover spot); un producto
-spot/CFD sí requiere spread, slippage, comisión y rollover/swap para cinco días.
+spot/CFD sí requiere spread, slippage, comisión y rollover/swap durante el
+horizonte ejecutable equivalente de cinco observaciones (ADR-010).
 Ninguna ruta está aún habilitada para promoción. La replicación es señal
 direccional, no evidencia de rentabilidad.

@@ -7,7 +7,7 @@
 ## Contexto
 
 El barrido de edge sobre el BCE encontró una señal preliminar de mean-reversion en EURGBP
-(lookback 10, duración 5), estable entre folds y robusta al seed, que sobrevive 1 pip pero no
+(lookback 10, duración 5 observaciones), estable entre folds y robusta al seed, que sobrevive 1 pip pero no
 10 pips de fricción ([edge-search-results.md](../research/edge-search-results.md)). El caveat
 principal es que el fixing del BCE es un único fixing mid-point no ejecutable: la señal podría
 ser un artefacto de ese fixing concreto (redondeo, convención, hora de concertación). Para

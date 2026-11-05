@@ -76,8 +76,9 @@ La documentación oficial actual expone sin auth/OTP:
 
 El 2026-11-05 se hizo un probe efímero de capacidad: `active_symbols` confirmó
 `frxEURGBP` y `contracts_for` confirmó CALL/PUT con duraciones de 1 a 365 días.
-Esto valida capacidad técnica para cinco días, no economía ni autorización para
-persistir propuestas. No se solicitó proposal y no se retuvo el payload.
+Esto no prueba que `5d` calendario equivalga a cinco observaciones (ADR-010), ni
+economía o autorización para persistir propuestas. No se solicitó proposal y no
+se retuvo el payload.
 
 ### `active_symbols`
 

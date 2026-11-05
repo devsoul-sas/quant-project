@@ -59,6 +59,21 @@ def test_trials_enter_after_the_momentum_signal_without_lookahead() -> None:
     assert trials[0].outcome.value == "WIN"
 
 
+def test_trial_horizon_starts_at_the_observation_after_the_signal() -> None:
+    ticks = (
+        Tick(epoch=1, quote=Decimal("100")),
+        Tick(epoch=2, quote=Decimal("101")),  # F_t: CALL signal
+        Tick(epoch=3, quote=Decimal("200")),  # F_t+1: executable entry
+        Tick(epoch=4, quote=Decimal("1")),
+        Tick(epoch=5, quote=Decimal("201")),  # F_t+3: exit after duration=2
+    )
+
+    trials = trials_from_ticks(ticks=ticks, duration=2)
+
+    assert len(trials) == 1
+    assert trials[0].outcome is Outcome.WIN
+
+
 def test_trials_from_ticks_rejects_invalid_duration() -> None:
     ticks = generate_ticks(seed=42, count=8)
 

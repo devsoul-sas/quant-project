@@ -7,6 +7,8 @@ PROTOCOL = REPO_ROOT / "docs" / "research" / "economic-protocol.md"
 RESULTS = REPO_ROOT / "docs" / "research" / "edge-search-results.md"
 CONFIRMATION = REPO_ROOT / "docs" / "research" / "fed-h10-confirmation-results.md"
 EXECUTION_ADR = REPO_ROOT / "docs" / "adr" / "ADR-009-eurgbp-execution-economics.md"
+HORIZON_ADR = REPO_ROOT / "docs" / "adr" / "ADR-010-observation-horizon-semantics.md"
+VENUES = REPO_ROOT / "docs" / "data" / "execution-venue-evaluation.md"
 
 
 def _read() -> str:
@@ -88,3 +90,22 @@ def test_execution_economics_separate_options_from_spot_costs() -> None:
     assert "holdout BCE permanece sellado" in text
     assert "NOT_ELIGIBLE" in text
     assert "real_money = EXCLUDED" in text
+
+
+def test_observation_horizon_is_causal_and_not_calendar_duration() -> None:
+    text = HORIZON_ADR.read_text(encoding="utf-8")
+
+    assert "F_{t+1}" in text
+    assert "F_{t+6}" in text
+    assert "cinco días calendario" in text
+    assert "holdout permanece sellado" in text
+
+
+def test_execution_venues_remain_blocked() -> None:
+    text = VENUES.read_text(encoding="utf-8")
+
+    assert "NINGUNO APROBADO" in text
+    assert "IG International" in text
+    assert "Interactive Brokers" in text
+    assert "OANDA" in text
+    assert "no se abren cuentas" in text

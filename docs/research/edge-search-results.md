@@ -34,7 +34,7 @@ momentum.
 
 ## Deep-dive EURGBP
 
-La señal más fuerte es mean-reversion con lookback 10 y duración 5 (sin spread):
+La señal más fuerte es mean-reversion con lookback 10 y duración 5 observaciones (sin spread):
 
 - hit rate direccional: 0.5678 (56.78 %);
 - hit rate por fold: 0.5551, 0.5763, 0.5551, 0.6271, 0.5254 (consistencia 0.1017);
@@ -42,12 +42,12 @@ La señal más fuerte es mean-reversion con lookback 10 y duración 5 (sin sprea
 - sobrevive 1 pip de fricción (hit 0.5636, límite inferior 0.5271);
 - NO sobrevive 10 pips (spread 0.001) — el efecto es de unos pocos pips netos.
 
-El patrón es coherente (mean-reversion de medio plazo, horizonte 5–10 días),
+El patrón es coherente (mean-reversion de medio plazo, horizonte 5–10 observaciones),
 no un outlier aislado del barrido.
 
 ## Validación independiente posterior
 
-La hipótesis preregistrada (mean-reversion, lookback 10, duración 5, 1 pip) fue
+La hipótesis preregistrada (mean-reversion, lookback 10, duración 5 observaciones, 1 pip) fue
 replicada sobre el fixing independiente de la Reserva Federal H.10: hit 0.5475,
 bootstrap 95 % [0.5161, 0.5822], con los cinco folds sobre 0.50. Ver
 [fed-h10-confirmation-results.md](fed-h10-confirmation-results.md).

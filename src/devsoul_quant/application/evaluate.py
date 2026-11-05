@@ -29,7 +29,12 @@ def trials_from_ticks(
     cost: ExecutionCostModel | None = None,
     symbol: str = DEFAULT_SYMBOL,
 ) -> tuple[TrialOutcome, ...]:
-    """Produce directional trials by sliding a strategy window over ordered ticks."""
+    """Produce causal directional trials over ordered observations.
+
+    The signal history ends at ``F_t``. Entry is the next observation
+    ``F_{t+1}``; ``duration=N`` exits at ``F_{t+1+N}``. Duration therefore
+    counts observed intervals, not calendar days.
+    """
     if type(duration) is not int or duration < 1:
         raise ValueError("duration must be a positive integer")
     if type(decision_history) is not int or decision_history < 2:
