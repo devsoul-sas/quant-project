@@ -16,7 +16,8 @@ Ningún proveedor externo cumple hoy los criterios obligatorios por escrito:
 - acceso histórico reproducible con semántica de timestamps;
 - campos económicos apropiados al producto.
 
-Deriv permanece en `PENDING_PROVIDER_REVIEW` y no está autorizado para persistencia.
+Deriv queda en `EPHEMERAL_ONLY` y no está autorizado para persistencia. No se
+esperará autorización futura ni se usará como camino de validación longitudinal.
 
 **Actualización (2026-11-04):** esta decisión de `NO_PROVIDER_APPROVED` fue reemplazada para
 FX diaria por ADR-007 (BCE aprobado) y ADR-008 (Reserva Federal H.10 aprobado, dominio público).
@@ -26,7 +27,7 @@ Sigue vigente para ticks/opciones y para cualquier otro subyacente sin fuente pe
 
 - La investigación continúa provider-independiente con datos sintéticos propios (ADR-006).
 - Ningún payload de proveedor entra en persistencia.
-- La integración demo Deriv se limita a la vía efímera (caché ≤24 h, sin persistencia).
+- La integración demo Deriv se limita a la vía efímera (caché <24 h, sin persistencia).
 - Los índices sintéticos Deriv son propietarios: el histórico real exige cambiar de
   subyacente (forex/cripto/índices de otra fuente), no un reemplazo del feed Deriv.
 
@@ -96,7 +97,7 @@ que la serie de spot rates concreta está cubierta por la OGL, no se adopta.
 
 La señal EURGBP ya fue replicada contra H.10. El siguiente gate es economía
 ejecutable y equivalencia temporal según ADR-009/ADR-010. Deriv permanece
-bloqueado por retención ≤24 h; IG, IBKR y OANDA fueron evaluados y ninguno quedó
+bloqueado por retención limitada a 24 h; IG, IBKR y OANDA fueron evaluados y ninguno quedó
 aprobado. Ver [execution-venue-evaluation.md](execution-venue-evaluation.md).
 
 El holdout permanece sellado hasta que un único producto primario tenga derechos,

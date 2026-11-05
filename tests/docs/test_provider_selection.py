@@ -18,7 +18,8 @@ def test_decision_records_no_provider_approved() -> None:
     text = _read(DECISION)
 
     assert "NO_PROVIDER_APPROVED" in text
-    assert "PENDING_PROVIDER_REVIEW" in text
+    assert "EPHEMERAL_ONLY" in text
+    assert "PENDING_PROVIDER_REVIEW" not in text
 
 
 def test_source_manifest_schema_requires_every_rights_gate_field() -> None:
@@ -46,7 +47,8 @@ def test_candidates_marks_unknowns_as_blockers() -> None:
     text = _read(CANDIDATES)
 
     assert "BLOQUEADO" in text or "bloquean" in text
-    assert "PENDING_PROVIDER_REVIEW" in text
+    assert "EPHEMERAL_ONLY" in text
+    assert "PENDING_PROVIDER_REVIEW" not in text
     # BCE is the only approved source, and only for daily FX (never ticks/options)
     assert "APROBADO BAJO LICENCIA PERMISIVA" in text
     assert "solo diario" in text

@@ -28,7 +28,7 @@ class TestEphemeralTickCache:
         assert cache.ttl_seconds == OPERATIONAL_MARGIN_SECONDS
         assert cache.ttl_seconds < MAX_CACHE_SECONDS
 
-    @pytest.mark.parametrize("ttl", [0, -1, MAX_CACHE_SECONDS + 1, "100"])
+    @pytest.mark.parametrize("ttl", [0, -1, MAX_CACHE_SECONDS, MAX_CACHE_SECONDS + 1, "100"])
     def test_rejects_ttl_outside_the_permitted_window(self, ttl: object) -> None:
         with pytest.raises(InvalidEphemeralConfig):
             EphemeralTickCache(ttl_seconds=ttl)  # type: ignore[arg-type]

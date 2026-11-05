@@ -18,4 +18,4 @@ La fuente vigente de verdad es:
 4. `docs/data/provider-data-policy.md`;
 5. `.hermes/plans/2026-09-28_202135-devsoul-quant-mvp.md`.
 
-Hasta obtener permiso escrito o una fuente con licencia compatible, cualquier presentación externa debe limitarse a arquitectura, seguridad y resultados obtenidos con datos sintéticos propios. No puede afirmar ventaja económica, histórico Deriv reproducible ni disponibilidad de un producto comercial basado en esos datos.
+Hasta adoptar una fuente con licencia compatible, cualquier presentación externa debe limitarse a arquitectura, seguridad y resultados obtenidos con fuentes aprobadas o datos sintéticos propios. No puede afirmar ventaja económica, histórico Deriv reproducible ni disponibilidad de un producto comercial basado en esos datos.

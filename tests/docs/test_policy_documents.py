@@ -14,12 +14,12 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_gate0_distinguishes_pending_review_from_authorization() -> None:
+def test_gate0_records_terminal_ephemeral_only_decision() -> None:
     text = _read(GATE0)
 
-    assert "PENDING_PROVIDER_REVIEW" in text
-    assert "2026-10-29" in text
-    assert "no constituye autorización" in text
+    assert "EPHEMERAL_ONLY" in text
+    assert "PENDING_PROVIDER_REVIEW" not in text
+    assert "no se esperará autorización futura" in text
     assert "no está en el camino crítico" in text
 
 
@@ -29,10 +29,11 @@ def test_gate0_names_the_alternative_license_path() -> None:
     assert "fuente de datos alternativa con licencia compatible" in text
 
 
-def test_provider_policy_references_the_pending_review_and_pivot() -> None:
+def test_provider_policy_references_the_terminal_ephemeral_pivot() -> None:
     text = _read(POLICY)
 
-    assert "PENDING_PROVIDER_REVIEW" in text
+    assert "EPHEMERAL_ONLY" in text
+    assert "PENDING_PROVIDER_REVIEW" not in text
     assert "ADR-006" in text
 
 
@@ -65,7 +66,7 @@ def test_ephemeral_demo_documents_the_bounded_demo_execution_and_export_block() 
     assert "Estadísticas transitorias: permitido" in text
     assert "Dataset histórico de características: bloqueado" in text
     assert "Pesos de modelos entrenados: bloqueado" in text
-    assert "Deriv-derived output is disabled pending written authorization" in text
+    assert "Deriv-derived output is disabled outside the <24h ephemeral session" in text
     assert "demo-execute" in text
     assert "máximo de un contrato" in text
     assert "recibo operativo genérico" in text

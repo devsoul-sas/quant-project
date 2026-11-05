@@ -11,7 +11,7 @@ Una conclusión negativa es un resultado válido.
 
 ## Cambio crítico respecto a v0.1
 
-Los API Users Terms de Deriv, cláusulas 2.1–2.4, prohíben almacenar contenido del API y solo permiten caché hasta 24 horas. El diseño original de histórico propio, Parquet y backtest persistente queda suspendido hasta obtener autorización escrita o seleccionar una fuente licenciada alternativa.
+Los API Users Terms de Deriv, cláusulas 2.1–2.4, prohíben almacenar contenido del API y solo permiten caché hasta 24 horas. Por decisión del proyecto, Deriv queda `EPHEMERAL_ONLY` con TTL estricto <24 h; el histórico, Parquet y backtest persistente requieren una fuente licenciada alternativa.
 
 ## Vertical slice técnico provisional
 
@@ -40,7 +40,7 @@ No hay afirmación de rentabilidad ni selección definitiva de mercado.
 7. Caché efímera con TTL ≤23 h, sin backup, si es necesaria para integración.
 8. Features causales y baselines sobre fixtures sintéticas.
 9. Protocolo científico y reportes sin contenido Deriv retenido.
-10. Solicitud de autorización escrita o evaluación de proveedor alternativo.
+10. Evaluación de un proveedor/venue alternativo con licencia compatible.
 
 ## Incluido solo después de desbloqueo de licencia
 

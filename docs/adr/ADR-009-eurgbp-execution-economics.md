@@ -45,14 +45,11 @@ Se separan dos productos y dos modelos incompatibles:
 
 ## Gate antes del holdout
 
-El holdout BCE permanece sellado. Solo podrá abrirse después de elegir una de estas
-rutas y congelarla en un `StrategyRelease`:
-
-1. **Deriv Options:** autorización de retención/derivados, observaciones demo
-   forward de propuestas CALL/PUT con expiración equivalente a ADR-010, protocolo de expiración y umbral
-   de break-even preregistrado; o
-2. **Spot/CFD:** broker elegido, términos compatibles, especificación verificable de
-   spread/slippage/comisión/swap y evidencia de paper execution.
+El holdout BCE permanece sellado. Deriv Options no es una ruta de promoción: su
+TTL <24 h no permite observar y retener un contrato multidiario equivalente a
+ADR-010. Solo podrá abrirse después de elegir un broker spot/CFD alternativo,
+verificar términos, spread/slippage/comisión/swap y evidencia de paper execution,
+y congelarlo en un `StrategyRelease`.
 
 La mera disponibilidad técnica de un contrato no demuestra valor esperado positivo.
 El hit rate H.10 de 0.5475 no se compara con una propuesta que no haya sido observada.
@@ -62,8 +59,8 @@ El hit rate H.10 de 0.5475 no se compara con una propuesta que no haya sido obse
 - `BinaryOptionEconomics` implementa break-even y EV con datos explícitos.
 - `ContractProposal` falla cerrado cuando la economía es incompleta o
   contradictoria.
-- no se persisten propuestas Deriv ni resultados derivados más allá del TTL actual
-  sin autorización escrita;
+- no se persisten propuestas Deriv ni resultados derivados; el estado se elimina
+  dentro del TTL <24 h;
 - `promotion_eligibility = NOT_ELIGIBLE`;
 - `profitability_claim = False`;
 - `real_money = EXCLUDED`.

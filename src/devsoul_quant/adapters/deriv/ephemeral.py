@@ -1,4 +1,4 @@
-"""Ephemeral (<=24h) in-memory tick handling for the Deriv demo feed.
+"""Ephemeral (<24h) in-memory tick handling for the Deriv demo feed.
 
 Implements the API Users Terms 2.1-2.4 cache window: feed content may be cached
 for a maximum of 24 hours from the request and must never be persisted to disk.
@@ -28,8 +28,8 @@ class EphemeralTickCache:
     """In-memory tick cache that expires entries and never persists them."""
 
     def __init__(self, *, ttl_seconds: int = OPERATIONAL_MARGIN_SECONDS) -> None:
-        if type(ttl_seconds) is not int or not 1 <= ttl_seconds <= MAX_CACHE_SECONDS:
-            raise InvalidEphemeralConfig(f"ttl_seconds must be within [1, {MAX_CACHE_SECONDS}]")
+        if type(ttl_seconds) is not int or not 1 <= ttl_seconds < MAX_CACHE_SECONDS:
+            raise InvalidEphemeralConfig(f"ttl_seconds must be within [1, {MAX_CACHE_SECONDS})")
         self.ttl_seconds = ttl_seconds
         self._entries: list[tuple[int, Tick]] = []
 

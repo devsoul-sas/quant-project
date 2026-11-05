@@ -64,7 +64,7 @@ Usar una fuente/broker que permita almacenamiento histórico y uso cuantitativo.
 
 ### Opción C — Laboratorio efímero de 24 horas
 
-Trabajar únicamente con caché TTL ≤24 h, sin backups ni corpus histórico. Esta opción permite pruebas de integración, pero no es suficiente para evidencia estadística persistente ni backtesting reproducible a largo plazo.
+Trabajar únicamente con caché TTL <24 h, sin backups ni corpus histórico. Esta opción permite pruebas de integración, pero no es suficiente para evidencia estadística persistente ni backtesting reproducible a largo plazo.
 
 ## Gate
 

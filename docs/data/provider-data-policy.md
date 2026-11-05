@@ -3,13 +3,12 @@
 Estado: bloqueante
 Fecha: 2026-09-29 (actualización 2026-11-05)
 
-## Estado de la revisión del proveedor
+## Estado terminal del proveedor
 
-La solicitud a Deriv sigue en revisión (`PENDING_PROVIDER_REVIEW`, última notificación
-2026-10-29). El cierre del chat de soporte no tiene efecto de licencia. La política
-permanece bloqueante para la persistencia de contenido Deriv; la investigación continúa
-provider-independiente con datos sintéticos propios según ADR-006. Ningún payload Deriv
-entra en persistencia hasta validar un manifest de licencia compatible.
+Deriv queda en `EPHEMERAL_ONLY`: no se esperará autorización futura. La política
+permanece bloqueante para toda persistencia de contenido o derivados Deriv; la
+investigación continúa provider-independiente según ADR-006. Ningún payload Deriv
+entra en persistencia.
 
 ## Regla vigente
 
@@ -34,10 +33,10 @@ General Terms 16.5–16.6 requieren permiso escrito para copiar o distribuir mat
 
 ## Consecuencia
 
-Hasta recibir autorización escrita:
+De forma permanente para el alcance actual:
 
 1. No persistir ticks, historial, catálogos, propuestas, payouts ni lifecycle Deriv más de 24 horas.
-2. La caché temporal debe tener TTL verificable ≤24 h.
+2. La caché temporal debe tener TTL verificable <24 h.
 3. No crear backups, snapshots, DLQ, logs de payloads ni exportaciones que sobrevivan al TTL.
 4. No construir corpus histórico Deriv para backtest o entrenamiento.
 5. No asumir que CSV/Parquet o una transformación evita la restricción.

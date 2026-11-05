@@ -177,12 +177,16 @@ def main(argv: Sequence[str] | None = None, *, stdout: TextIO | None = None) -> 
 
 
 def _run_live_demo(arguments: argparse.Namespace, destination: TextIO) -> int:
-    destination.write("error: Deriv-derived output is disabled pending written authorization\n")
+    destination.write(
+        "error: Deriv-derived output is disabled outside the <24h ephemeral session\n"
+    )
     return 2
 
 
 def _run_live_evaluation(arguments: argparse.Namespace, destination: TextIO) -> int:
-    destination.write("error: Deriv-derived output is disabled pending written authorization\n")
+    destination.write(
+        "error: Deriv-derived output is disabled outside the <24h ephemeral session\n"
+    )
     return 2
 
 

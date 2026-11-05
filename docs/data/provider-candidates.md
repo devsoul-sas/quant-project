@@ -17,11 +17,11 @@ esos subyacentes y, más adelante, puede mapearse de vuelta a la ejecución demo
 
 | Criterio | Estado |
 |----------|--------|
-| Retención de histórico | BLOQUEADO — API Terms 2.1–2.4; solo caché ≤24 h |
+| Retención de histórico | BLOQUEADO — API Terms 2.1–2.4; implementación con caché <24 h |
 | Retención de derivados | BLOQUEADO — API Terms 2.1; sin confirmación escrita |
 | Presentación comercial | PENDIENTE |
 | Redistribución | PROHIBIDA sin permiso escrito (General Terms 16.5–16.6) |
-| Revisión de solicitud | PENDING_PROVIDER_REVIEW (última notificación 2026-10-29) |
+| Estado del proyecto | EPHEMERAL_ONLY; no se esperará autorización futura |
 
 Deriv no está en el camino crítico. No se asume autorización por accesibilidad del API.
 Un probe público efímero del 2026-11-05 confirmó que `frxEURGBP` ofrece CALL/PUT

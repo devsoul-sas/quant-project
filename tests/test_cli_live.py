@@ -7,7 +7,7 @@ import pytest
 from devsoul_quant.cli import main
 
 DEMO_URL = "wss://api.derivws.com/trading/v1/options/ws/demo?otp=secret-otp"
-DISABLED = "error: Deriv-derived output is disabled pending written authorization\n"
+DISABLED = "error: Deriv-derived output is disabled outside the <24h ephemeral session\n"
 
 
 @pytest.mark.parametrize("command", ["live-demo", "live-evaluate"])

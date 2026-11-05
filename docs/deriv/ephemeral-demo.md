@@ -29,14 +29,14 @@ No se entrenan ni conservan archivos `.pt`, `.pkl`, checkpoints, embeddings o pa
 contenido Deriv. Que un modelo no permita reconstruir fácilmente los ticks no concede derechos
 de retención sobre el artefacto derivado.
 
-La autorización escrita de Deriv sigue siendo necesaria para superar B o C.
+B y C quedan fuera del alcance: no se esperará autorización futura de Deriv.
 
 ## Comportamiento actual de la CLI
 
 Los comandos de exportación siguen devolviendo:
 
 ```text
-error: Deriv-derived output is disabled pending written authorization
+error: Deriv-derived output is disabled outside the <24h ephemeral session
 ```
 
 El rechazo ocurre antes de resolver credenciales o abrir la red. No existe un flag para omitirlo.

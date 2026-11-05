@@ -1,15 +1,14 @@
 # Solicitud de confirmación a Deriv — borrador
 
 Destinatario: `api-support@deriv.com`
-Estado: escalada por Deriv al equipo competente; respuesta pendiente
+Estado: **CERRADA / HISTÓRICA — NO ENVIAR SEGUIMIENTOS**
 Referencia activa informada: issue `#141839`
 Referencia anterior, posible duplicado: issue `#141833`
 Registrada: `2026-09-29T22:18:01Z`
 Última actualización: `2026-09-30T14:06:05Z`
 
-La confirmación de registro no concede permisos ni modifica el Gate 0. El bloqueo solo
-puede levantarse con una respuesta sustantiva y escrita que defina expresamente el alcance
-autorizado.
+Por decisión del proyecto del 2026-11-05, no se esperará autorización futura. Este
+archivo conserva contexto histórico; Deriv queda `EPHEMERAL_ONLY` con TTL <24 h.
 
 Tras recibir los detalles adicionales, Deriv confirmó que escaló la solicitud al equipo
 competente e informó un plazo estimado de uno a tres días hábiles. No se enviarán solicitudes

@@ -14,7 +14,7 @@ para propuestas, resultados demo o artefactos derivados. General Terms R26|03,
 
 ## Decisión
 
-Hasta obtener autorización escrita o cambiar de fuente:
+Para el alcance actual, sin esperar autorización futura:
 
 - no persistir market data/payloads Deriv más de 24 horas;
 - no crear backups de esa caché;
@@ -28,9 +28,8 @@ Hasta obtener autorización escrita o cambiar de fuente:
 
 ## Alternativas
 
-1. Permiso escrito de Deriv: conserva el diseño original.
-2. Fuente licenciada alternativa: conserva investigación histórica y desacopla ejecución.
-3. Caché efímera ≤24 h: solo sirve para integración/operación, no para evidencia histórica suficiente.
+1. Fuente licenciada alternativa: conserva investigación histórica y desacopla ejecución.
+2. Caché efímera <24 h: solo sirve para integración/operación, no para evidencia histórica suficiente.
 
 ## Consecuencias
 
@@ -38,4 +37,5 @@ El Gate 0 no puede aprobar el collector persistente. El Bloque 1 puede crear inf
 
 ## Revisión
 
-Reemplazar esta decisión únicamente con el texto de autorización/licencia aplicable, alcance, fecha, entidad y obligaciones de retención/eliminación.
+Deriv permanece `EPHEMERAL_ONLY`. La investigación económica solo se desbloquea
+mediante otra fuente/venue con licencia compatible.

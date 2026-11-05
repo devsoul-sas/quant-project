@@ -8,16 +8,15 @@ Estado: **BLOQUEADO POR LICENCIA DE DATOS**.
 
 La API y el lifecycle técnico fueron verificados, pero los API Users Terms actuales no permiten el histórico persistente que requieren los documentos originales. La API solo permite cachear contenido durante un máximo de 24 horas, salvo autorización adicional.
 
-## Estado de la revisión del proveedor
+## Decisión terminal sobre Deriv
 
-Actualizado: 2026-10-29.
+Actualizado: 2026-11-05.
 
-Estado: **PENDING_PROVIDER_REVIEW**.
+Estado: **EPHEMERAL_ONLY**.
 
-Deriv notificó en reiteradas ocasiones (la más reciente el 2026-10-29) que la solicitud
-sigue en revisión por el equipo competente y que el chat de soporte queda cerrado mientras
-tanto. El cierre del chat no tiene efecto de licencia y la notificación de "revisión en
-curso" no constituye autorización de retención, derivados, presentación ni redistribución.
+Por decisión de producto, no se esperará autorización futura. Deriv se limita a
+conectividad y una sesión demo en memoria con TTL estricto menor de 24 horas. No
+puede aportar corpus histórico, métricas retenidas ni evidencia económica longitudinal.
 
 Deriv ya no está en el camino crítico: la investigación continúa provider-independiente con
 datos sintéticos propios y la ruta alternativa de fuente con licencia compatible permanece
@@ -50,8 +49,7 @@ Los datos públicos capturados temporalmente durante la comprobación fueron eli
 - desarrollar dominio, reloj, ledger y guardas demo-only;
 - usar fixtures sintéticas creadas por DevSoul;
 - probar schema parsing con ejemplos oficiales sujetos a su licencia;
-- diseñar caché TTL ≤24 h sin backups;
-- preparar solicitud formal a Deriv.
+- usar caché en memoria con TTL <24 h, sin backups ni exportación.
 
 ## Bloqueado
 
@@ -64,18 +62,13 @@ Los datos públicos capturados temporalmente durante la comprobación fueron eli
 - paper/demo orientado a demostrar edge;
 - dinero real.
 
-## Condición de desbloqueo
+## Condición de desbloqueo científico
 
-Una de estas:
-
-1. autorización escrita de Deriv que cubra retención, derivados y presentación privada; o
-2. fuente de datos alternativa con licencia compatible y protocolo ajustado.
+Una fuente de datos alternativa con licencia compatible y un venue alternativo con
+economía observada y protocolo ajustado. Deriv no es una condición de desbloqueo.
 
 ## Próximo paso
 
-Deriv notificó en reiteradas ocasiones (más reciente: 2026-10-29) que la revisión sigue en
-curso y que el chat queda cerrado mientras tanto. No abrir solicitudes duplicadas. El estado
-es `PENDING_PROVIDER_REVIEW`: no constituye autorización y no bloquea el avance de
-ingeniería. El pipeline de investigación avanza provider-independiente con datos sintéticos
-propios (ADR-006); el pipeline persistente de mercado continúa bloqueado hasta autorización
-escrita o adopción de una fuente con licencia compatible.
+Mantener Deriv en `EPHEMERAL_ONLY`, sin nuevas solicitudes de permiso. El pipeline de
+investigación avanza con BCE/H.10 y datos propios; la economía ejecutable requiere un
+venue alternativo con licencia compatible. Deriv no está en el camino crítico.

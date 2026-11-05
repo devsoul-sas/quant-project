@@ -31,8 +31,8 @@ Cuatro estados separan lo que está listo de lo que no:
    funciona de extremo a extremo y el pipeline es reproducible.
 2. **scientific_evidence** — `NON_ECONOMIC`: los resultados sintéticos validan ingeniería,
    no rentabilidad. La tasa de acierto direccional es un proxy no económico.
-3. **provider_license_blockers** — `DERIV_PENDING`: la autorización de Deriv sigue en
-   revisión; la persistencia de market data no está autorizada.
+3. **provider_license_blockers** — `DERIV_EPHEMERAL_ONLY`: no se esperará
+   autorización futura; no se usa contenido Deriv persistido.
 4. **real_money_exclusion** — `EXCLUDED`: no existe modo de dinero real.
 
 El campo `evaluation.promotion_eligibility` es `NOT_ELIGIBLE`: la evidencia sintética no

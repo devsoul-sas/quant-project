@@ -27,7 +27,7 @@ El Gate 0 está **bloqueado para almacenamiento persistente de datos Deriv** por
 - [API actual](deriv/current-api.md)
 - [Manifest de schemas](deriv/schema-manifest.json)
 - [Bloqueo de almacenamiento](deriv/api-storage-blocker.md)
-- [Demo efímera (≤24 h)](deriv/ephemeral-demo.md)
+- [Demo efímera (<24 h)](deriv/ephemeral-demo.md)
 
 ## Investigación
 
