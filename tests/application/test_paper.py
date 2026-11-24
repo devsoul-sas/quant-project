@@ -51,6 +51,22 @@ def test_paper_execution_reuses_the_deterministic_replay_core() -> None:
     assert execution.replay.economy is EconomyProvenance.UNAVAILABLE
 
 
+def test_paper_execution_dispatches_even_contract_to_digit_replay() -> None:
+    intent = _intent().model_copy(update={"contract_type": ContractType.DIGITEVEN, "duration": 1})
+
+    execution = execute_paper(
+        execution_id="paper-digit-1",
+        intent=intent,
+        risk_policy=RiskPolicy(max_amount_per_contract=Decimal("1.00"), kill_switch_enabled=False),
+        ticks=(
+            Tick(epoch=1, quote=Decimal("100.1"), pip_size=1),
+            Tick(epoch=2, quote=Decimal("100.2"), pip_size=1),
+        ),
+    )
+
+    assert execution.replay.outcome is Outcome.WIN
+
+
 def test_paper_execution_fails_closed_without_risk_approval() -> None:
     intent = _intent()
     with pytest.raises(UnapprovedPaperExecution, match="REJECTED"):

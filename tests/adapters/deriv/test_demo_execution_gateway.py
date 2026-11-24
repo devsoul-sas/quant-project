@@ -12,6 +12,7 @@ from devsoul_quant.adapters.deriv.demo_execution import (
     DerivDemoExecutionGateway,
 )
 from devsoul_quant.application.demo_execution import DemoProposal
+from devsoul_quant.application.multiplier_lab import ContractAvailability, MultiplierProposal
 from devsoul_quant.domain.contracts import (
     Basis,
     ContractAction,
@@ -20,6 +21,7 @@ from devsoul_quant.domain.contracts import (
     EnterContractIntent,
     ExitPolicy,
 )
+from devsoul_quant.domain.multiplier import MultiplierIntent
 
 DEMO_URL = "wss://api.derivws.com/trading/v1/options/ws/demo?otp=secret-otp"
 
@@ -92,6 +94,140 @@ def test_gateway_builds_and_parses_a_demo_proposal() -> None:
             "duration_unit": "t",
             "underlying_symbol": "R_100",
             "req_id": 1,
+        }
+    ]
+
+
+def test_gateway_discovers_available_contract_types_for_symbol() -> None:
+    socket = FakeSocket(
+        [
+            {
+                "contracts_for": {
+                    "available": [
+                        {"contract_type": "DIGITEVEN"},
+                        {"contract_type": "DIGITODD"},
+                        {"contract_type": "MULTUP"},
+                    ]
+                },
+                "req_id": 6,
+            }
+        ]
+    )
+    gateway = DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket))
+
+    available = gateway.available_contract_types("R_10")
+
+    assert available == frozenset({"DIGITEVEN", "DIGITODD", "MULTUP"})
+    assert socket.sent == [{"contracts_for": "R_10", "req_id": 6}]
+
+
+def test_gateway_preserves_multiplier_contract_constraints() -> None:
+    socket = FakeSocket(
+        [
+            {
+                "contracts_for": {
+                    "available": [
+                        {
+                            "contract_type": "MULTUP",
+                            "expiry_type": "no_expiry",
+                            "barriers": 0,
+                            "multiplier_range": [40, 100],
+                        },
+                        {
+                            "contract_type": "MULTDOWN",
+                            "expiry_type": "no_expiry",
+                            "barriers": 0,
+                            "multiplier_range": [40, 100],
+                        },
+                    ]
+                }
+            }
+        ]
+    )
+    gateway = DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket))
+
+    assert gateway.available_contracts("R_10") == (
+        ContractAvailability("MULTUP", "no_expiry", 0, (Decimal("40"), Decimal("100"))),
+        ContractAvailability("MULTDOWN", "no_expiry", 0, (Decimal("40"), Decimal("100"))),
+    )
+    assert socket.sent == [{"contracts_for": "R_10", "req_id": 6}]
+
+
+def test_gateway_discovers_active_symbol_codes_and_names() -> None:
+    socket = FakeSocket(
+        [
+            {
+                "active_symbols": [
+                    {
+                        "underlying_symbol": "RDS10",
+                        "underlying_symbol_name": "Drift Switching Index 10",
+                    },
+                    {
+                        "underlying_symbol": "R_10",
+                        "underlying_symbol_name": "Volatility 10 Index",
+                    },
+                ],
+                "req_id": 7,
+            }
+        ]
+    )
+    gateway = DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket))
+
+    symbols = gateway.active_symbols()
+
+    assert [(item.symbol, item.name) for item in symbols] == [
+        ("RDS10", "Drift Switching Index 10"),
+        ("R_10", "Volatility 10 Index"),
+    ]
+    assert socket.sent == [{"active_symbols": "brief", "req_id": 7}]
+
+
+def test_gateway_builds_and_parses_multiplier_proposal_without_buying() -> None:
+    socket = FakeSocket(
+        [
+            {
+                "proposal": {
+                    "id": "pm-1",
+                    "ask_price": 1.0,
+                    "spot": 100.25,
+                    "commission": 0.5,
+                },
+                "req_id": 8,
+            }
+        ]
+    )
+    gateway = DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket))
+    intent = MultiplierIntent(
+        symbol="RDS",
+        contract_type=ContractType.MULTUP,
+        stake=Decimal("1"),
+        multiplier=Decimal("10"),
+        stop_loss=Decimal("0.50"),
+        take_profit=Decimal("1.00"),
+        maximum_holding_ticks=5,
+        strategy_reason="test",
+    )
+
+    proposal = gateway.propose_multiplier(intent)
+
+    assert proposal == MultiplierProposal(
+        proposal_id="pm-1",
+        ask_price=Decimal("1.0"),
+        spot=Decimal("100.25"),
+        commission_percent=Decimal("0.5"),
+    )
+    assert proposal.commission_amount == Decimal("0.005")
+    assert socket.sent == [
+        {
+            "proposal": 1,
+            "amount": 1.0,
+            "basis": "stake",
+            "contract_type": "MULTUP",
+            "currency": "USD",
+            "multiplier": 10.0,
+            "limit_order": {"stop_loss": 0.5, "take_profit": 1.0},
+            "underlying_symbol": "RDS",
+            "req_id": 8,
         }
     ]
 

@@ -3,7 +3,8 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from devsoul_quant.domain.contracts import EnterContractIntent
+from devsoul_quant.domain.contracts import ContractType, EnterContractIntent
+from devsoul_quant.domain.digit_replay import replay_digit
 from devsoul_quant.domain.replay import ReplayResult, Tick, replay_rise_fall
 from devsoul_quant.domain.risk import RiskDecision, RiskDisposition, RiskPolicy
 
@@ -36,8 +37,12 @@ def execute_paper(
         raise UnapprovedPaperExecution(
             f"paper execution requires APPROVED risk, got {risk_decision.disposition}"
         )
+    if intent.contract_type in (ContractType.DIGITEVEN, ContractType.DIGITODD):
+        replay = replay_digit(intent, ticks)
+    else:
+        replay = replay_rise_fall(intent, ticks)
     return PaperExecution(
         execution_id=execution_id,
         risk_decision=risk_decision,
-        replay=replay_rise_fall(intent, ticks),
+        replay=replay,
     )

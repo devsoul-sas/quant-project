@@ -19,10 +19,14 @@ class ContractAction(StrEnum):
 
 
 class ContractType(StrEnum):
-    """Rise/Fall directions used by the synthetic tracer."""
+    """Supported provider-independent option contract directions."""
 
     CALL = "CALL"
     PUT = "PUT"
+    DIGITEVEN = "DIGITEVEN"
+    DIGITODD = "DIGITODD"
+    MULTUP = "MULTUP"
+    MULTDOWN = "MULTDOWN"
 
 
 class DurationUnit(StrEnum):

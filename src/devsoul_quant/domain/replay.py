@@ -46,6 +46,7 @@ class Tick:
 
     epoch: int
     quote: Decimal
+    pip_size: int | None = None
 
     def __post_init__(self) -> None:
         if type(self.epoch) is not int:
@@ -54,6 +55,8 @@ class Tick:
             raise InvalidTick("tick quote must be a Decimal")
         if not self.quote.is_finite():
             raise InvalidTick("tick quote must be finite")
+        if self.pip_size is not None and (type(self.pip_size) is not int or self.pip_size < 0):
+            raise InvalidTick("tick pip_size must be a non-negative integer")
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +76,8 @@ def replay_rise_fall(
     economy: EconomyProvenance = EconomyProvenance.UNAVAILABLE,
 ) -> ReplayResult:
     """Replay a Rise contract to its tick-duration expiry with a declared economy."""
+    if intent.contract_type not in (ContractType.CALL, ContractType.PUT):
+        raise ValueError("Rise/Fall replay requires a CALL or PUT contract")
     if intent.barrier is not None:
         raise UnsupportedBarrier("barrier is not supported by the Rise/Fall tracer")
     if len(ticks) <= intent.duration:

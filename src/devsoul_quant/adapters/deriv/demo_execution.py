@@ -15,7 +15,13 @@ from typing import Any
 
 from devsoul_quant.adapters.deriv.demo_url import validate_demo_websocket_url
 from devsoul_quant.application.demo_execution import DemoProposal, DemoSettlement
+from devsoul_quant.application.multiplier_lab import (
+    ContractAvailability,
+    MarketSymbol,
+    MultiplierProposal,
+)
 from devsoul_quant.domain.contracts import EnterContractIntent
+from devsoul_quant.domain.multiplier import MultiplierIntent
 
 
 class DerivDemoExecutionError(RuntimeError):
@@ -136,6 +142,104 @@ class DerivDemoExecutionGateway:
             raise
         except Exception as error:
             raise DerivDemoExecutionError("Deriv demo connection failed") from error
+
+    def _available_contract_payload(self, symbol: str) -> list[object]:
+        if not isinstance(symbol, str) or not symbol.strip():
+            raise DerivDemoExecutionError("symbol must be a non-blank string")
+        message = self._request({"contracts_for": symbol, "req_id": 6})
+        contracts_for = _mapping(message.get("contracts_for"), "contracts_for")
+        available = contracts_for.get("available")
+        if not isinstance(available, list):
+            raise DerivDemoExecutionError("Deriv response has invalid available contracts")
+        return available
+
+    def available_contract_types(self, symbol: str) -> frozenset[str]:
+        """Discover contract families instead of assuming symbol compatibility."""
+        contract_types: set[str] = set()
+        for contract in self._available_contract_payload(symbol):
+            item = _mapping(contract, "available contract")
+            contract_type = item.get("contract_type")
+            if not isinstance(contract_type, str) or not contract_type:
+                raise DerivDemoExecutionError("Deriv response has invalid contract_type")
+            contract_types.add(contract_type)
+        return frozenset(contract_types)
+
+    def available_contracts(self, symbol: str) -> tuple[ContractAvailability, ...]:
+        """Preserve constraints needed to validate Multiplier proposals."""
+        constraints: list[ContractAvailability] = []
+        for contract in self._available_contract_payload(symbol):
+            item = _mapping(contract, "available contract")
+            contract_type = item.get("contract_type")
+            if contract_type not in ("MULTUP", "MULTDOWN"):
+                continue
+            expiry_type = item.get("expiry_type")
+            barriers = item.get("barriers")
+            multiplier_range = item.get("multiplier_range")
+            if not isinstance(expiry_type, str) or not expiry_type:
+                raise DerivDemoExecutionError("Deriv response has invalid expiry_type")
+            if type(barriers) is not int or barriers < 0:
+                raise DerivDemoExecutionError("Deriv response has invalid barriers")
+            if not isinstance(multiplier_range, list) or not multiplier_range:
+                raise DerivDemoExecutionError("Deriv response has invalid multiplier_range")
+            parsed_range = tuple(_decimal(value, "multiplier_range") for value in multiplier_range)
+            if any(value <= 0 for value in parsed_range):
+                raise DerivDemoExecutionError("Deriv response has invalid multiplier_range")
+            constraints.append(
+                ContractAvailability(
+                    contract_type=contract_type,
+                    expiry_type=expiry_type,
+                    barriers=barriers,
+                    multiplier_range=parsed_range,
+                )
+            )
+        return tuple(constraints)
+
+    def active_symbols(self) -> tuple[MarketSymbol, ...]:
+        """Return minimal active symbol identities without retaining provider payloads."""
+        message = self._request({"active_symbols": "brief", "req_id": 7})
+        payload = message.get("active_symbols")
+        if not isinstance(payload, list):
+            raise DerivDemoExecutionError("Deriv response has invalid active_symbols")
+        symbols: list[MarketSymbol] = []
+        for raw_symbol in payload:
+            item = _mapping(raw_symbol, "active symbol")
+            symbol = item.get("underlying_symbol")
+            name = item.get("underlying_symbol_name")
+            if not isinstance(symbol, str) or not symbol:
+                raise DerivDemoExecutionError("Deriv response has invalid symbol code")
+            if not isinstance(name, str) or not name:
+                raise DerivDemoExecutionError("Deriv response has invalid symbol name")
+            symbols.append(MarketSymbol(symbol=symbol, name=name))
+        return tuple(symbols)
+
+    def propose_multiplier(self, intent: MultiplierIntent) -> MultiplierProposal:
+        """Observe Multiplier economics without purchasing the proposal."""
+        message = self._request(
+            {
+                "proposal": 1,
+                "amount": _json_number(intent.stake, "stake"),
+                "basis": "stake",
+                "contract_type": intent.contract_type.value,
+                "currency": "USD",
+                "multiplier": _json_number(intent.multiplier, "multiplier"),
+                "limit_order": {
+                    "stop_loss": _json_number(intent.stop_loss, "stop_loss"),
+                    "take_profit": _json_number(intent.take_profit, "take_profit"),
+                },
+                "underlying_symbol": intent.symbol,
+                "req_id": 8,
+            }
+        )
+        payload = _mapping(message.get("proposal"), "proposal")
+        proposal_id = payload.get("id")
+        if not isinstance(proposal_id, str) or not proposal_id:
+            raise DerivDemoExecutionError("Deriv proposal has invalid id")
+        return MultiplierProposal(
+            proposal_id=proposal_id,
+            ask_price=_decimal(payload.get("ask_price"), "ask_price"),
+            spot=_decimal(payload.get("spot"), "spot"),
+            commission_percent=_decimal(payload.get("commission"), "commission"),
+        )
 
     def propose(self, intent: EnterContractIntent) -> DemoProposal:
         payload: dict[str, object] = {

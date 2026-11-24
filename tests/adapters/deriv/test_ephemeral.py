@@ -84,6 +84,11 @@ class TestEphemeralTickCache:
 
 
 class TestParseDerivTick:
+    def test_preserves_provider_pip_size_for_digit_analysis(self) -> None:
+        tick = parse_deriv_tick({"tick": {"epoch": EPOCH, "quote": 1234.5, "pip_size": 3}})
+
+        assert tick.pip_size == 3
+
     def test_parses_an_integer_epoch_and_numeric_quote(self) -> None:
         tick = parse_deriv_tick({"tick": {"epoch": EPOCH, "quote": 1234.56}})
 
@@ -103,6 +108,7 @@ class TestParseDerivTick:
             {"tick": {"epoch": "1", "quote": "1.0"}},
             {"tick": {"epoch": EPOCH, "quote": "nope"}},
             {"tick": {"epoch": EPOCH, "quote": "Infinity"}},
+            {"tick": {"epoch": EPOCH, "quote": "1.0", "pip_size": -1}},
         ],
     )
     def test_rejects_malformed_messages(self, message: object) -> None:

@@ -81,4 +81,7 @@ def parse_deriv_tick(message: Mapping[str, object]) -> Tick:
         raise InvalidDerivTick("tick quote must be numeric") from None
     if not quote_decimal.is_finite():
         raise InvalidDerivTick("tick quote must be finite")
-    return Tick(epoch=epoch, quote=quote_decimal)
+    pip_size = payload.get("pip_size")
+    if pip_size is not None and (type(pip_size) is not int or pip_size < 0):
+        raise InvalidDerivTick("tick pip_size must be a non-negative integer")
+    return Tick(epoch=epoch, quote=quote_decimal, pip_size=pip_size)

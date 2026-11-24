@@ -162,3 +162,28 @@ def test_rise_fall_replay_rejects_a_barrier_it_cannot_settle() -> None:
 
     with pytest.raises(UnsupportedBarrier, match="barrier"):
         replay_rise_fall(intent, ticks)
+
+
+def test_rise_fall_replay_rejects_a_digit_contract() -> None:
+    intent = EnterContractIntent(
+        action=ContractAction.ENTER_CONTRACT,
+        symbol="R_10",
+        contract_type=ContractType.DIGITEVEN,
+        duration=1,
+        duration_unit=DurationUnit.TICKS,
+        basis=Basis.STAKE,
+        amount_requested=Decimal("1"),
+        currency="USD",
+        barrier=None,
+        exit_policy=ExitPolicy.EXPIRY,
+        strategy_reason="wrong replay",
+    )
+
+    with pytest.raises(ValueError, match="CALL or PUT"):
+        replay_rise_fall(
+            intent,
+            (
+                Tick(epoch=1, quote=Decimal("100.1"), pip_size=1),
+                Tick(epoch=2, quote=Decimal("100.2"), pip_size=1),
+            ),
+        )

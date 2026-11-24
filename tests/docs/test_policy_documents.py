@@ -7,7 +7,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE0 = REPO_ROOT / "docs" / "scope" / "gate-0-status.md"
 POLICY = REPO_ROOT / "docs" / "data" / "provider-data-policy.md"
 ADR006 = REPO_ROOT / "docs" / "adr" / "ADR-006-provider-independent-research-pivot.md"
+ADR011 = REPO_ROOT / "docs" / "adr" / "ADR-011-venue-closure-strategic-pivot.md"
+ADR012 = REPO_ROOT / "docs" / "adr" / "ADR-012-ephemeral-deriv-operation.md"
 EPHEMERAL_DEMO = REPO_ROOT / "docs" / "deriv" / "ephemeral-demo.md"
+CROWDSOURCED = REPO_ROOT / "docs" / "research" / "quant-crowdsourced-opportunities.md"
+README = REPO_ROOT / "docs" / "README.md"
+MVP_SCOPE = REPO_ROOT / "docs" / "scope" / "mvp-in-out.md"
 
 
 def _read(path: Path) -> str:
@@ -84,3 +89,97 @@ def test_ephemeral_demo_does_not_instruct_credential_or_network_use() -> None:
     assert "export DEVSOUL_QUANT_DERIV_APP_ID" not in text
     assert "--url" not in text
     assert "--otp" not in text
+
+
+def test_ephemeral_demo_documents_the_paper_only_session_without_buying() -> None:
+    text = " ".join(_read(EPHEMERAL_DEMO).split())
+
+    assert "paper-session" in text
+    assert "--confirm-paper-only" in text
+    assert "No compra ningún contrato" in text
+    assert "ESTIMATED" in text
+    assert "sold" in text
+    assert "PAPER_ELIGIBLE" in text
+    assert "break-even" in text
+
+
+def test_adr011_closes_venue_chapter_and_pivots() -> None:
+    assert ADR011.is_file()
+    text = _read(ADR011)
+
+    # Venue chapter closed, no broker approved.
+    assert "Cerrar el capítulo venue de FX retail" in text
+    assert "consultas formales a brokers" in text
+    # Scientific invariants preserved.
+    assert "profitability_claim = False" in text
+    assert "promotion_eligibility = NOT_ELIGIBLE" in text
+    assert "real_money = EXCLUDED" in text
+    assert "holdout_opened = False" in text
+    # Strategic pivot targets.
+    assert "Numerai" in text
+    assert "WorldQuant BRAIN" in text
+    assert "Producto educativo" in text
+    # Negative conclusion is a valid result.
+    assert "conclusión negativa válida" in text
+
+
+def test_gate0_records_venue_closure_and_pivot() -> None:
+    text = _read(GATE0)
+
+    assert "Cierre del capítulo venue" in text
+    assert "ADR-011" in text
+    assert "Numerai" in text
+    assert "WorldQuant BRAIN" in text
+
+
+def test_crowdsourced_opportunities_document_verified_facts() -> None:
+    assert CROWDSOURCED.is_file()
+    text = _read(CROWDSOURCED)
+
+    # Numerai verified mechanics.
+    assert "Numerai" in text
+    assert "Meta Model" in text
+    assert "target_jupiter_60" in text
+    assert "NMR" in text
+    # WorldQuant BRAIN verified facts.
+    assert "WorldQuant BRAIN" in text
+    assert "Alphas" in text
+    assert "$8 000" in text
+    assert "$2 000" in text
+    assert "Grandmaster" in text
+    assert "IQC 2026" in text
+    # No profitability claims.
+    assert "INVESTIGACIÓN_INICIAL" in text
+    assert "No se ha" in text and "abierto cuenta" in text
+    assert "afirmación de rentabilidad" in text
+
+
+def test_adr012_freezes_ephemeral_deriv_operation_without_new_permission_requests() -> None:
+    assert ADR012.is_file()
+    text = _read(ADR012)
+    normalized = text.lower()
+
+    assert "no se enviarán nuevas solicitudes de permiso" in normalized
+    assert "ttl estricto menor de 24 horas" in normalized
+    assert "solo en memoria" in normalized
+    assert "cada sesión comienza sin estado" in normalized
+    assert "ninguna sesión aprende de una sesión anterior" in normalized
+    assert "NO_EDGE" in text
+    assert "INSUFFICIENT_EVIDENCE" in text
+    assert "PAPER_ELIGIBLE" in text
+    assert "real_money = EXCLUDED" in text
+
+
+def test_scope_links_the_ephemeral_strategy_protocols_without_reopening_history() -> None:
+    readme = _read(README)
+    gate = _read(GATE0)
+    scope = _read(MVP_SCOPE)
+    scope_flat = " ".join(scope.lower().split())
+
+    assert "ADR-012" in readme
+    assert "Even/Odd" in readme and "Multipliers" in readme
+    assert "no se enviarán nuevas solicitudes de permiso" in gate.lower()
+    assert "laboratorio operativo efímero" in gate.lower()
+    assert "cada sesión comienza sin estado" in scope_flat
+    assert "ninguna sesión aprende de una sesión anterior" in scope_flat
+    assert "dinero real" in scope_flat and "excluido" in scope_flat

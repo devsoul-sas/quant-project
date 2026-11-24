@@ -109,3 +109,75 @@ def test_execution_venues_remain_blocked() -> None:
     assert "Interactive Brokers" in text
     assert "OANDA" in text
     assert "no se abren cuentas" in text
+
+
+def test_darwinex_zero_is_recorded_as_track_record_layer_not_venue() -> None:
+    doc = REPO_ROOT / "docs" / "data" / "execution-venue-darwinex-zero.md"
+    assert doc.is_file()
+    text = doc.read_text(encoding="utf-8")
+
+    # It is a virtual-capital track-record layer, not an execution venue.
+    assert "NO ES UN VENUE" in text
+    assert "Third Party Broker" in text
+    assert "systematic extraction" in text
+    assert "prior written permission" in text
+    assert "Tradeslide Technologies Ltd" in text
+    assert "FRN 586466" in text
+    assert "plataforma virtual, no una demo" in text
+
+    venues = VENUES.read_text(encoding="utf-8")
+    assert "Darwinex Zero" in venues
+    assert "NINGUNO APROBADO" in venues
+
+
+def test_darwinex_global_evaluation_separates_entity_and_gates() -> None:
+    doc = REPO_ROOT / "docs" / "data" / "provider-evaluation-darwinex-global.md"
+    assert doc.is_file()
+    text = doc.read_text(encoding="utf-8")
+
+    assert "TRADESLIDE GLOBAL LTD" in text
+    assert "SD171" in text
+    assert "Colombia" in text
+    assert "EURGBP" in text
+    assert "Expert Advisor" in text
+    assert "UNKNOWN/BLOCKING" in text
+    assert "NOT APPROVED" in text
+    assert "holdout permanece sellado" in text
+
+
+def test_darwinex_fca_terms_block_data_retention_and_automation() -> None:
+    doc = REPO_ROOT / "docs" / "data" / "darwinex-api-market-data-terms.md"
+    assert doc.is_file()
+    text = doc.read_text(encoding="utf-8")
+
+    # Broker terms (Client Agreement, FCA entity) prohibit redistribution and gate automation.
+    assert "NOT GRANTED" in text
+    assert "9.1(d)" in text
+    assert "9.1(c)" in text
+    assert "9.6" in text
+    assert "13.1" in text
+    assert "retransmit, redistribute" in text
+    assert "prior written consent" in text
+    # DARWIN API terms restrict use and reserve derivative works.
+    assert "3.2" in text
+    assert "3.4" in text
+    assert "derivative work" in text
+    assert "internal purposes" in text
+    # Verified source hashes (FCA folder).
+    assert "b81c7d674fc642f079172047b5759135141dbe42795581f5a3a9ad6c41d997b8" in text
+    assert "3cc29b9c7d2b72ce3ff7dc9f97ceeb3e38b9dae78482f76a1514720f7bb48193" in text
+
+
+def test_darwinex_execution_evidence_documents_eurgbp_conditions() -> None:
+    doc = REPO_ROOT / "docs" / "data" / "darwinex-execution-evidence.md"
+    assert doc.is_file()
+    text = doc.read_text(encoding="utf-8")
+
+    assert "FRN 586466" in text
+    assert "EURGBP" in text
+    assert "0.55" in text
+    assert "FIX" in text
+    assert "swapLong" in text
+    assert "tripleSwapDay" in text
+    assert "minSize" in text
+    assert "BLOCKING" in text or "UNKNOWN" in text

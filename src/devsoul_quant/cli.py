@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
@@ -23,6 +24,14 @@ from devsoul_quant.application.reporting import (
     run_research,
     write_evidence_package,
 )
+from devsoul_quant.application.research_runner import (
+    even_odd_release,
+    multiplier_release,
+    run_even_odd_session,
+    run_multiplier_session,
+)
+from devsoul_quant.domain.digit_strategy import DigitDecisionPolicy
+from devsoul_quant.domain.multiplier import MultiplierPolicy
 
 
 class CliError(RuntimeError):
@@ -128,6 +137,24 @@ def _parser() -> argparse.ArgumentParser:
     demo_execute.add_argument("--maximum-session-loss", type=Decimal, default=Decimal("1.00"))
     demo_execute.add_argument("--confirm-demo-only", action="store_true")
 
+    paper_session = commands.add_parser(
+        "paper-session", help="run one ephemeral paper-only Deriv demo session"
+    )
+    paper_session.add_argument("--strategy", choices=("even-odd", "multiplier"), required=True)
+    paper_session.add_argument("--symbol", default=None, help="market symbol (even-odd only)")
+    paper_session.add_argument(
+        "--fallback-symbol", default="R_10", help="multiplier fallback symbol"
+    )
+    paper_session.add_argument("--tick-count", type=int, default=120)
+    paper_session.add_argument("--warmup-ticks", type=int, default=100)
+    paper_session.add_argument(
+        "--multiplier",
+        type=Decimal,
+        default=Decimal("400"),
+        help="maximum multiplier ceiling; the session uses the minimum available at runtime",
+    )
+    paper_session.add_argument("--confirm-paper-only", action="store_true")
+
     research = commands.add_parser(
         "research", help="run reproducible provider-independent research"
     )
@@ -173,6 +200,8 @@ def main(argv: Sequence[str] | None = None, *, stdout: TextIO | None = None) -> 
         return _run_live_evaluation(arguments, destination)
     if arguments.command == "demo-execute":
         return _run_demo_execute(arguments, destination)
+    if arguments.command == "paper-session":
+        return _run_paper_session(arguments, destination)
     raise AssertionError("argparse accepted an unsupported command")  # pragma: no cover
 
 
@@ -233,6 +262,98 @@ def _run_demo_execute(arguments: argparse.Namespace, destination: TextIO) -> int
         destination.write("error: demo session failed safely; inspect provider account state\n")
         return 2
     destination.write(f"{receipt.public_message}\n")
+    return 0
+
+
+def _run_paper_session(arguments: argparse.Namespace, destination: TextIO) -> int:
+    if not arguments.confirm_paper_only:
+        destination.write("error: pass --confirm-paper-only to run one ephemeral paper session\n")
+        return 2
+    token = os.getenv("DEVSOUL_QUANT_DERIV_TOKEN", "")
+    app_id = os.getenv("DEVSOUL_QUANT_DERIV_APP_ID", "")
+    account_id = os.getenv("DEVSOUL_QUANT_DERIV_ACCOUNT") or None
+    if not token or not app_id:
+        destination.write("error: demo credentials are not configured\n")
+        return 2
+    if arguments.strategy == "even-odd" and not arguments.symbol:
+        destination.write("error: --symbol is required for the even-odd strategy\n")
+        return 2
+
+    from devsoul_quant.adapters.deriv.client import collect_ticks_resilient
+    from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
+    from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+
+    def resolve_url() -> str:
+        return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
+
+    def collect(url: str, symbol: str, count: int) -> object:
+        return asyncio.run(collect_ticks_resilient(resolve_url, symbol, count=count))
+
+    def clock() -> int:
+        return int(time.time())
+
+    try:
+        if arguments.strategy == "even-odd":
+            even_odd_policy = DigitDecisionPolicy(
+                min_samples=arguments.warmup_ticks,
+                z_score=Decimal("2.576"),
+                min_edge_probability=Decimal("0.01"),
+            )
+            release = even_odd_release(even_odd_policy, code_version="0.1.0", ttl_seconds=82_800)
+            result = run_even_odd_session(
+                release=release,
+                symbol=arguments.symbol,
+                warmup_ticks=arguments.warmup_ticks,
+                tick_count=arguments.tick_count,
+                policy=even_odd_policy,
+                amount_requested=Decimal("1.00"),
+                resolve_url=resolve_url,
+                collect_ticks=collect,  # type: ignore[arg-type]
+                gateway_factory=lambda url: DerivDemoExecutionGateway(url),
+                clock=clock,
+            )
+        else:
+            multiplier_policy = MultiplierPolicy(
+                lookback_ticks=5,
+                minimum_absolute_return=Decimal("0.01"),
+                minimum_directional_consistency=Decimal("0.75"),
+                multiplier=arguments.multiplier,
+                stake=Decimal("1"),
+                stop_loss=Decimal("0.50"),
+                take_profit=Decimal("1.00"),
+                maximum_holding_ticks=5,
+            )
+            release = multiplier_release(
+                multiplier_policy, code_version="0.1.0", ttl_seconds=82_800
+            )
+            result = run_multiplier_session(
+                release=release,
+                fallback_symbol=arguments.fallback_symbol,
+                tick_count=arguments.tick_count,
+                policy=multiplier_policy,
+                resolve_url=resolve_url,
+                collect_ticks=collect,  # type: ignore[arg-type]
+                gateway_factory=lambda url: DerivDemoExecutionGateway(url),
+                clock=clock,
+            )
+    except Exception:
+        destination.write("error: paper session failed safely; no provider state retained\n")
+        return 2
+
+    destination.write(
+        json.dumps(
+            {
+                "strategy": result.family.value,
+                "conclusion": result.conclusion.value,
+                "release_id": result.release_id,
+                "forward_iterations": result.forward_iterations,
+                "entries": result.entries,
+                "no_trade": result.no_trade,
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    )
     return 0
 
 
