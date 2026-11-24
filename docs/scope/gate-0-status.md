@@ -67,8 +67,18 @@ Los datos públicos capturados temporalmente durante la comprobación fueron eli
 Una fuente de datos alternativa con licencia compatible y un venue alternativo con
 economía observada y protocolo ajustado. Deriv no es una condición de desbloqueo.
 
+## Cierre del capítulo venue (2026-11-05)
+
+La búsqueda de un venue spot/CFD FX fue agotada y cerrada formalmente (ADR-011).
+Ningún broker retail (IG, IBKR, OANDA, Darwinex Global y UK) concede por escrito
+retención de bid/ask + derivados con fines comerciales, y la hipótesis EURGBP no
+sobrevive costos ejecutables. El pivote estratégico es a cuant crowdsourced
+(Numerai / WorldQuant BRAIN) y a producto educativo en español.
+
 ## Próximo paso
 
-Mantener Deriv en `EPHEMERAL_ONLY`, sin nuevas solicitudes de permiso. El pipeline de
-investigación avanza con BCE/H.10 y datos propios; la economía ejecutable requiere un
-venue alternativo con licencia compatible. Deriv no está en el camino crítico.
+Mantener Deriv en `EPHEMERAL_ONLY`: no se enviarán nuevas solicitudes de permiso y no
+se construirá histórico. ADR-012 habilita un laboratorio operativo efímero donde cada
+sesión descubre contratos, recalienta, valida forward, simula y elimina todo su estado
+antes de 24 horas. Esto no reabre el capítulo venue FX cerrado por ADR-011 ni habilita
+dinero real. Cuant crowdsourced y el producto educativo continúan como líneas separadas.

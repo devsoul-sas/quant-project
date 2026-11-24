@@ -54,6 +54,26 @@ Requiere `DEVSOUL_QUANT_DERIV_TOKEN`, `DEVSOUL_QUANT_DERIV_APP_ID` y, opcionalme
 repositorio, documentación, logs o chat. La confirmación habilita una sola invocación; no existe
 loop autónomo ni modo real.
 
+### Sesión paper efímera (paper-session)
+
+`paper-session` ejecuta una sesión paper-only dentro del mismo marco efímero: descubre contratos
+en runtime, recolecta una ventana corta de ticks en memoria, solicita propuestas contemporáneas de
+solo lectura, decide causalmente, simula el settlement y elimina todo el estado al cerrar. No
+compra ningún contrato; solo observa economía contemporánea.
+
+```text
+uv run devsoul-quant paper-session --strategy even-odd --symbol R_10 --confirm-paper-only
+uv run devsoul-quant paper-session --strategy multiplier --confirm-paper-only
+```
+
+El único output es un veredicto JSON con la conclusión (`NO_EDGE`, `INSUFFICIENT_EVIDENCE` o
+`PAPER_ELIGIBLE`) y conteos agregados de la sesión. Nunca imprime ticks, precios, payout, P/L,
+propuestas, identificadores de contrato ni la URL demo. Las credenciales se leen únicamente de
+variables de entorno, igual que `demo-execute`. Una sesión Multiplier nunca concluye
+`PAPER_ELIGIBLE` porque su salida paper es solo una estimación (`ESTIMATED`), no un settlement
+observado (`sold`); Even/Odd solo puede emitir `PAPER_ELIGIBLE` cuando su cota conservadora supera
+el break-even contemporáneo.
+
 ## Protocolo técnico
 
 La ventana de observación usa un OTP demo y se cierra. Si existe una intención, se solicita un

@@ -1,7 +1,12 @@
 # Alcance DevSoul Quant MVP v0.2
 
-Estado: bloqueado para market data persistente
-Fecha de corte: 2026-09-29 UTC
+Estado: capítulo venue FX cerrado; laboratorio Deriv efímero activo (ADR-012)
+Fecha de corte: 2026-11-23
+
+> El alcance FX/CFD original queda cerrado. Ningún venue spot/CFD fue aprobado y la
+> hipótesis EURGBP no sobrevive costos. La dirección activa reutiliza el núcleo de
+> backtesting hacia cuant crowdsourced (Numerai / WorldQuant BRAIN) y producto
+> educativo/metodológico en español. Ver ADR-011.
 
 ## Propósito
 
@@ -28,6 +33,18 @@ Mientras se resuelve la licencia:
 - ningún símbolo, moneda o stake queda congelado hasta consultar dinámicamente `contracts_for` y una cuenta demo autorizada.
 
 No hay afirmación de rentabilidad ni selección definitiva de mercado.
+
+## Laboratorio operativo efímero
+
+Deriv se usa únicamente durante una sesión con TTL estricto menor de 24 horas. Cada
+sesión comienza sin estado y ninguna sesión aprende de una sesión anterior. Ticks,
+propuestas, features, decisiones y resultados permanecen en memoria y se eliminan al
+cerrar. No se enviarán nuevas solicitudes de permiso ni se encadenarán sesiones para
+reconstruir historia.
+
+Las hipótesis activas son Even/Odd y Multipliers, separadas por protocolo. Solo pueden
+producir `NO_EDGE`, `INSUFFICIENT_EVIDENCE` o `PAPER_ELIGIBLE` dentro de la sesión.
+El dinero real permanece excluido.
 
 ## Incluido ahora
 

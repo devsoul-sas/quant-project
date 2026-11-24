@@ -92,13 +92,20 @@ que la serie de spot rates concreta está cubierta por la OGL, no se adopta.
 | BCE (euro FX reference rates) | Aprobado para FX diario (ver ADR-007) |
 | Reserva Federal (H.10 FX rates) | Aprobado para FX diario, dominio público (ver ADR-008) |
 | Bank of England (daily spot rates) | Condicional, bloqueado (exclusión OGL de datos FX) |
+| Darwinex Global (Tradeslide Global Ltd, FSA SD171) | No aprobado (venue); ver evaluación |
 
 ## Siguiente paso concreto
 
 La señal EURGBP ya fue replicada contra H.10. El siguiente gate es economía
 ejecutable y equivalencia temporal según ADR-009/ADR-010. Deriv permanece
 bloqueado por retención limitada a 24 h; IG, IBKR y OANDA fueron evaluados y ninguno quedó
-aprobado. Ver [execution-venue-evaluation.md](execution-venue-evaluation.md).
+aprobado. Darwinex Zero fue evaluado y resultó ser una **capa de track-record/capital
+inversor, no un venue de ejecución**; su broker subyacente, Darwinex Global
+(Tradeslide Global Ltd, FSA SD171), fue evaluado por separado y quedó **no aprobado** por
+falta de licencia escrita de datos/derivados. Ver
+[execution-venue-evaluation.md](execution-venue-evaluation.md),
+[execution-venue-darwinex-zero.md](execution-venue-darwinex-zero.md) y
+[provider-evaluation-darwinex-global.md](provider-evaluation-darwinex-global.md).
 
 El holdout permanece sellado hasta que un único producto primario tenga derechos,
 economía observada y ventana ejecutable equivalentes a la hipótesis congelada.

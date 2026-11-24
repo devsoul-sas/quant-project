@@ -21,6 +21,7 @@ El Gate 0 está **bloqueado para almacenamiento persistente de datos Deriv** por
 - [ADR-004: contract intent](adr/ADR-004-contract-intent-semantics.md)
 - [ADR-005: bloqueo de retención](adr/ADR-005-deriv-data-retention-blocker.md)
 - [ADR-006: pivot provider-independiente](adr/ADR-006-provider-independent-research-pivot.md)
+- [ADR-012: operación Deriv estrictamente efímera](adr/ADR-012-ephemeral-deriv-operation.md)
 
 ## Deriv
 
@@ -32,6 +33,8 @@ El Gate 0 está **bloqueado para almacenamiento persistente de datos Deriv** por
 ## Investigación
 
 - [Plantilla de protocolo](research/validation-protocol-template.md)
+- [Even/Odd efímero](research/deriv-even-odd-session-protocol.md)
+- [Multipliers efímero](research/deriv-multiplier-session-protocol.md)
 
 ## Datos y legal
 

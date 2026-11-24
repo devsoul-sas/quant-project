@@ -23,6 +23,8 @@ actividad esté prohibida.
 | IG International | UNKNOWN/BLOCKING | Sí | Sí | spread específico; swap/slippage incompletos | UNKNOWN/BLOCKING | mejor candidato técnico; no aprobado |
 | Interactive Brokers | Sí, en lista oficial | Sí, tras cuenta aprobada y financiada | Sí | comisión; rollover/slippage incompletos | BLOCKING para non-display/derivados sin aclaración | no aprobado |
 | OANDA | UNKNOWN/BLOCKING para entidad aplicable | Sí | UNKNOWN para esa entidad | financiación BVI no combinable con API v20 excluida allí | UNKNOWN/BLOCKING | no aprobado |
+| Darwinex Zero | UNKNOWN/BLOCKING | virtual (capital virtual, mercado real); no es un venue | UNKNOWN (par no confirmado en catálogo) | n/a — no ejecuta | restringe extracción comercial del sitio (3.5) | **NO ES UN VENUE**; capa de track-record/capital |
+| Darwinex Global (Tradeslide Global Ltd, FSA SD171) | CONDITIONAL (Colombia en registro; sujeta a KYC, CSA 3.5) | Sí (demo MT4/MT5) | Sí (spread 0.7 pips) | publicada (spread/swap/comisión/rollover) | UNKNOWN/BLOCKING sin licencia de datos | no aprobado (datos) |
 
 ## IG International
 
@@ -67,6 +69,17 @@ pertenece a esa entidad BVI. No se mezclan especificaciones de entidades distint
 Colombia, EURGBP, spread/slippage y licencia de persistencia siguen sin prueba
 suficiente para una misma entidad.
 
+## Darwinex Zero
+
+Darwinex Zero **no es un venue de ejecución**: es una capa de track-record sobre capital
+virtual que monitoriza la actividad en un broker subyacente. Ver
+[execution-venue-darwinex-zero.md](execution-venue-darwinex-zero.md). Sus términos de uso
+restringen la reproducción/almacenamiento del sitio (cláusula 1.2.2) y el uso
+comercial/extracción sistemática (cláusula 3.5). La ejecución y los datos de mercado
+residen en el broker subyacente (Tradeslide Trading Tech Ltd, FCA FRN 586466, o un Third
+Party Broker), cuya admisión colombiana, `EURGBP`, economía y derechos de persistencia
+siguen sin evaluar. No resuelve el gate g5.
+
 ## Decisión
 
 Ningún venue desbloquea el holdout. Prioridad futura de diligencia:
@@ -75,6 +88,19 @@ Ningún venue desbloquea el holdout. Prioridad futura de diligencia:
 2. IBKR, solo si se acepta la condición de cuenta financiada y se obtiene permiso
    para non-display/derivados;
 3. OANDA, solo al identificar entidad aplicable a Colombia y API compatible.
+
+Darwinex Zero se evalúa por separado como **capa de monetización** (track-record →
+capital inversor), no como venue: no sustituye la necesidad de un broker spot/CFD.
+
+## Darwinex Global (broker subyacente)
+
+El broker real de la ruta "Global" es **Tradeslide Global Ltd** (Seychelles, FSA SD171).
+Su [evaluación formal](provider-evaluation-darwinex-global.md) concluye **NOT APPROVED**:
+Colombia aparece como opción de registro (CONDITIONAL, sujeta a KYC según CSA 3.5),
+`EURGBP` está listado con economía publicada (spread 0.7 pips, swap/comisión/rollover) y
+hay demo MT4/MT5 con Expert Advisors, pero **no hay licencia por escrito** para
+persistir histórico bid/ask ni derivados con fines comerciales. Bloqueo central en
+datos; no desbloquea el holdout.
 
 Mientras tanto, los costos permanecen `ESTIMATED`; no se atribuye economía observada,
 no se abren cuentas, no se conservan payloads y no se opera.
