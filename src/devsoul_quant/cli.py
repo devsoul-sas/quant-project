@@ -12,6 +12,12 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TextIO
 
+from devsoul_quant.application.autonomous_demo import (
+    AutonomousDemoConfig,
+    AutonomousDemoSnapshot,
+    DemoStrategy,
+    run_autonomous_demo,
+)
 from devsoul_quant.application.demo import run_synthetic_demo
 from devsoul_quant.application.demo_execution import DemoExecutionLimits
 from devsoul_quant.application.demo_session import run_demo_session
@@ -31,6 +37,7 @@ from devsoul_quant.application.research_runner import (
     run_multiplier_session,
 )
 from devsoul_quant.domain.digit_strategy import DigitDecisionPolicy
+from devsoul_quant.domain.execution_mode import parse_execution_mode
 from devsoul_quant.domain.multiplier import MultiplierPolicy
 
 
@@ -137,6 +144,32 @@ def _parser() -> argparse.ArgumentParser:
     demo_execute.add_argument("--maximum-session-loss", type=Decimal, default=Decimal("1.00"))
     demo_execute.add_argument("--confirm-demo-only", action="store_true")
 
+    autonomous = commands.add_parser(
+        "autonomous-demo", help="run the bounded local autonomous demo runner"
+    )
+    autonomous.add_argument(
+        "--mode",
+        choices=("OBSERVE_ONLY", "SHADOW_TRADING", "DEMO_INTEGRATION", "DEMO_EXPLORATORY"),
+        required=True,
+    )
+    autonomous.add_argument("--symbol", required=True)
+    autonomous.add_argument(
+        "--strategy",
+        choices=("EVEN_ODD", "MOMENTUM", "CONTROLLED_RANDOM", "ADAPTIVE_ENSEMBLE"),
+        required=True,
+    )
+    autonomous.add_argument("--session-seconds", type=int, default=3600)
+    autonomous.add_argument("--ticks-per-cycle", type=int, default=30)
+    autonomous.add_argument("--contract-duration", type=int, default=1)
+    autonomous.add_argument("--maximum-cycles", type=int, default=120)
+    autonomous.add_argument("--stake", type=Decimal, default=Decimal("1.00"))
+    autonomous.add_argument("--experimental-budget", type=Decimal, default=Decimal("2.00"))
+    autonomous.add_argument("--maximum-contracts", type=int, default=2)
+    autonomous.add_argument("--maximum-session-loss", type=Decimal, default=Decimal("2.00"))
+    autonomous.add_argument("--minimum-net-payout-ratio", type=Decimal, default=Decimal("0.01"))
+    autonomous.add_argument("--seed", type=int, default=42)
+    autonomous.add_argument("--arm-demo", action="store_true")
+
     paper_session = commands.add_parser(
         "paper-session", help="run one ephemeral paper-only Deriv demo session"
     )
@@ -200,6 +233,8 @@ def main(argv: Sequence[str] | None = None, *, stdout: TextIO | None = None) -> 
         return _run_live_evaluation(arguments, destination)
     if arguments.command == "demo-execute":
         return _run_demo_execute(arguments, destination)
+    if arguments.command == "autonomous-demo":
+        return _run_autonomous_demo(arguments, destination)
     if arguments.command == "paper-session":
         return _run_paper_session(arguments, destination)
     raise AssertionError("argparse accepted an unsupported command")  # pragma: no cover
@@ -262,6 +297,275 @@ def _run_demo_execute(arguments: argparse.Namespace, destination: TextIO) -> int
         destination.write("error: demo session failed safely; inspect provider account state\n")
         return 2
     destination.write(f"{receipt.public_message}\n")
+    return 0
+
+
+def _autonomous_snapshot_payload(snapshot: AutonomousDemoSnapshot) -> dict[str, object]:
+    economics = snapshot.economics
+    adaptive = snapshot.adaptive
+    return {
+        "connection_state": snapshot.connection_state,
+        "instrument": snapshot.instrument,
+        "strategy": snapshot.strategy,
+        "ticks_processed": snapshot.ticks_processed,
+        "signal": snapshot.signal,
+        "virtual_balance": str(snapshot.virtual_balance),
+        "open_contracts": snapshot.open_contracts,
+        "settled_contracts": snapshot.settled_contracts,
+        "quotes_consulted": snapshot.quotes_consulted,
+        "profit_loss": str(snapshot.profit_loss),
+        "win_rate": None if snapshot.win_rate is None else str(snapshot.win_rate),
+        "break_even": None if snapshot.break_even is None else str(snapshot.break_even),
+        "drawdown": str(snapshot.drawdown),
+        "risk_state": snapshot.risk_state,
+        "elapsed_seconds": str(snapshot.elapsed_seconds),
+        "abstention_reasons": list(snapshot.abstention_reasons),
+        "experimental_budget": str(snapshot.experimental_budget),
+        "budget_used": str(snapshot.budget_used),
+        "budget_remaining": str(snapshot.budget_remaining),
+        "adaptive": (
+            None
+            if adaptive is None
+            else {
+                "resolved_labels": adaptive.resolved_labels,
+                "evaluation_labels": adaptive.evaluation_labels,
+                "pending_labels": adaptive.pending_labels,
+                "decision": adaptive.decision,
+                "candidate_models": list(adaptive.candidate_models),
+                "decision_reasons": list(adaptive.decision_reasons),
+                "parity_resolved_labels": adaptive.parity_resolved_labels,
+                "parity_constant_brier": (
+                    None
+                    if adaptive.parity_constant_brier is None
+                    else str(adaptive.parity_constant_brier)
+                ),
+                "parity_frequency_brier": (
+                    None
+                    if adaptive.parity_frequency_brier is None
+                    else str(adaptive.parity_frequency_brier)
+                ),
+                "models": [
+                    {
+                        "model": item.model,
+                        "observations": item.observations,
+                        "brier_score": (
+                            None if item.brier_score is None else str(item.brier_score)
+                        ),
+                        "log_loss": None if item.log_loss is None else str(item.log_loss),
+                        "accuracy": None if item.accuracy is None else str(item.accuracy),
+                        "expected_calibration_error": (
+                            None
+                            if item.expected_calibration_error is None
+                            else str(item.expected_calibration_error)
+                        ),
+                        "quoted_opportunities": item.quoted_opportunities,
+                        "signals": item.signals,
+                        "signal_coverage": (
+                            None if item.signal_coverage is None else str(item.signal_coverage)
+                        ),
+                        "mean_break_even": (
+                            None if item.mean_break_even is None else str(item.mean_break_even)
+                        ),
+                        "mean_estimated_value": (
+                            None
+                            if item.mean_estimated_value is None
+                            else str(item.mean_estimated_value)
+                        ),
+                        "brier_improvement_vs_causal": (
+                            None
+                            if item.brier_improvement_vs_causal is None
+                            else str(item.brier_improvement_vs_causal)
+                        ),
+                        "first_half_brier_improvement": (
+                            None
+                            if item.first_half_brier_improvement is None
+                            else str(item.first_half_brier_improvement)
+                        ),
+                        "second_half_brier_improvement": (
+                            None
+                            if item.second_half_brier_improvement is None
+                            else str(item.second_half_brier_improvement)
+                        ),
+                        "bootstrap_lower_bound": (
+                            None
+                            if item.bootstrap_lower_bound is None
+                            else str(item.bootstrap_lower_bound)
+                        ),
+                    }
+                    for item in adaptive.models
+                ],
+            }
+        ),
+        "economics": {
+            "decisions": economics.decisions,
+            "abstentions": economics.abstentions,
+            "abstention_frequency": (
+                None
+                if economics.abstention_frequency is None
+                else str(economics.abstention_frequency)
+            ),
+            "wins": economics.wins,
+            "losses": economics.losses,
+            "stakes": str(economics.stakes),
+            "effective_net_payout": (
+                None
+                if economics.effective_net_payout is None
+                else str(economics.effective_net_payout)
+            ),
+            "break_even": None if economics.break_even is None else str(economics.break_even),
+            "estimated_probability": (
+                None
+                if economics.estimated_probability is None
+                else str(economics.estimated_probability)
+            ),
+            "estimated_value": (
+                None if economics.estimated_value is None else str(economics.estimated_value)
+            ),
+            "gross_profit": str(economics.gross_profit),
+            "gross_loss": str(economics.gross_loss),
+            "net_profit": str(economics.net_profit),
+            "profit_factor": (
+                None if economics.profit_factor is None else str(economics.profit_factor)
+            ),
+            "roi_on_stakes": (
+                None if economics.roi_on_stakes is None else str(economics.roi_on_stakes)
+            ),
+            "by_contract_type": [
+                {
+                    "contract_type": item.contract_type,
+                    "operations": item.operations,
+                    "wins": item.wins,
+                    "losses": item.losses,
+                    "stakes": str(item.stakes),
+                    "effective_net_payout": str(item.effective_net_payout),
+                    "break_even": str(item.break_even),
+                    "estimated_probability": (
+                        None
+                        if item.estimated_probability is None
+                        else str(item.estimated_probability)
+                    ),
+                    "estimated_value": (
+                        None if item.estimated_value is None else str(item.estimated_value)
+                    ),
+                    "gross_profit": str(item.gross_profit),
+                    "gross_loss": str(item.gross_loss),
+                    "net_profit": str(item.net_profit),
+                    "profit_factor": (
+                        None if item.profit_factor is None else str(item.profit_factor)
+                    ),
+                    "roi_on_stakes": str(item.roi_on_stakes),
+                }
+                for item in economics.by_contract_type
+            ],
+        },
+    }
+
+
+def _run_autonomous_demo(arguments: argparse.Namespace, destination: TextIO) -> int:
+    token = os.getenv("DEVSOUL_QUANT_DERIV_TOKEN", "")
+    app_id = os.getenv("DEVSOUL_QUANT_DERIV_APP_ID", "")
+    account_id = os.getenv("DEVSOUL_QUANT_DERIV_ACCOUNT") or None
+    if not token or not app_id:
+        destination.write("error: demo credentials are not configured\n")
+        return 2
+    if (
+        arguments.stake <= 0
+        or arguments.stake > Decimal("1")
+        or arguments.experimental_budget <= 0
+        or arguments.experimental_budget > Decimal("100")
+        or arguments.maximum_contracts < 1
+        or arguments.maximum_contracts > 100
+        or arguments.maximum_session_loss <= 0
+        or arguments.maximum_session_loss > Decimal("10")
+    ):
+        destination.write("error: autonomous demo limits exceed the frozen demo bounds\n")
+        return 2
+
+    from devsoul_quant.adapters.deriv.client import collect_ticks
+    from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
+    from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+
+    def resolve_url() -> str:
+        return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
+
+    def collect(symbol: str, count: int) -> object:
+        return asyncio.run(
+            collect_ticks(
+                resolve_url(),
+                symbol,
+                count=count,
+                heartbeat_seconds=10,
+            )
+        )
+
+    latest_snapshot: AutonomousDemoSnapshot | None = None
+
+    def emit(snapshot: AutonomousDemoSnapshot) -> None:
+        nonlocal latest_snapshot
+        latest_snapshot = snapshot
+        destination.write(
+            json.dumps(
+                {"type": "status", **_autonomous_snapshot_payload(snapshot)},
+                sort_keys=True,
+            )
+            + "\n"
+        )
+
+    try:
+        config = AutonomousDemoConfig(
+            mode=parse_execution_mode(arguments.mode),
+            symbol=arguments.symbol,
+            strategy=DemoStrategy(arguments.strategy),
+            session_seconds=arguments.session_seconds,
+            ticks_per_cycle=arguments.ticks_per_cycle,
+            contract_duration=arguments.contract_duration,
+            maximum_cycles=arguments.maximum_cycles,
+            experimental_budget=arguments.experimental_budget,
+            seed=arguments.seed,
+            armed=arguments.arm_demo,
+        )
+        limits = DemoExecutionLimits(
+            fixed_stake=arguments.stake,
+            minimum_net_payout_ratio=arguments.minimum_net_payout_ratio,
+            maximum_contracts=arguments.maximum_contracts,
+            maximum_session_loss=arguments.maximum_session_loss,
+            kill_switch_enabled=False,
+        )
+        result = run_autonomous_demo(
+            config=config,
+            limits=limits,
+            collect_ticks=collect,  # type: ignore[arg-type]
+            resolve_url=resolve_url,
+            gateway_factory=lambda url: DerivDemoExecutionGateway(url),
+            emit=emit,
+        )
+    except Exception:
+        if latest_snapshot is not None:
+            destination.write(
+                json.dumps(
+                    {
+                        "type": "error",
+                        "reason": "SAFE_AUTONOMOUS_DEMO_STOP",
+                        **_autonomous_snapshot_payload(latest_snapshot),
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+        else:
+            destination.write("error: autonomous demo stopped safely; inspect demo account state\n")
+        return 2
+    destination.write(
+        json.dumps(
+            {
+                "type": "final",
+                "classification": result.classification,
+                **_autonomous_snapshot_payload(result.final),
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    )
     return 0
 
 

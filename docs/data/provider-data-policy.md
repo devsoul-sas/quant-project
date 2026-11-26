@@ -1,7 +1,7 @@
 # Política provisional de datos del proveedor
 
 Estado: bloqueante
-Fecha: 2026-09-29 (actualización 2026-11-05)
+Fecha: 2026-09-29 (revalidación oficial 2026-11-25)
 
 ## Estado terminal del proveedor
 
@@ -16,7 +16,7 @@ Fuente principal:
 
 https://deriv.com/terms-and-conditions/api-users
 
-API Users Terms R26|03, actualizado 2026-10-16:
+API Users Terms R26|03, actualizado 2026-11-16:
 
 - 2.1: no almacenar contenido que derive/proceda del sitio o se obtenga mediante la API, incluido feed data;
 - 2.2: se pueden almacenar API tokens y OAuth tokens;
@@ -40,7 +40,8 @@ De forma permanente para el alcance actual:
 3. No crear backups, snapshots, DLQ, logs de payloads ni exportaciones que sobrevivan al TTL.
 4. No construir corpus histórico Deriv para backtest o entrenamiento.
 5. No asumir que CSV/Parquet o una transformación evita la restricción.
-6. No conservar features, etiquetas, modelos o métricas derivados más allá del TTL sin aclaración escrita.
+6. Features, etiquetas, modelos y métricas derivados solo pueden existir en memoria dentro de
+   la caché de sesión; no conservarlos más allá del TTL ni reutilizarlos entre sesiones.
 7. No mostrar al socio datos crudos, feeds reproducibles ni propuestas.
 8. No usar marcas, logo o afirmaciones de asociación/aprobación sin permiso.
 9. Mantener tokens y datos de cuenta fuera de Git/logs y con mínimo privilegio.
@@ -59,6 +60,25 @@ Si se implementa antes de recibir respuesta:
 - fail-closed si el mecanismo de expiración falla.
 
 Esta caché sirve para integración, no para evidencia histórica suficiente.
+
+## Matriz de aprendizaje adaptativo S3.8
+
+La revalidación del 2026-11-25 también consideró API Terms 1.1 (desarrollar y probar una
+aplicación), 4.1 (exclusión del contenido obtenido o derivado de la API) y General Terms
+16.5–16.6 (permiso escrito para copia/distribución):
+
+| Capacidad | Estado |
+|---|---|
+| entrenamiento incremental en memoria | `EPHEMERAL_ONLY` durante una sesión <24 h |
+| evaluación prequential en memoria | `EPHEMERAL_ONLY` |
+| features y etiquetas temporales | `EPHEMERAL_ONLY` |
+| parámetros entrenados/checkpoints persistentes | `BLOCKED` |
+| métricas derivadas persistentes o longitudinales | `BLOCKED` |
+| visualización local no reconstructiva durante la sesión | `EPHEMERAL_ONLY` |
+| publicación o presentación externa de resultados derivados | `BLOCKED` sin permiso escrito |
+
+Entrenar en memoria no convierte los parámetros o métricas en artefactos propios persistibles.
+La sesión debe zeroizar modelos, buffers, etiquetas pendientes y métricas al cerrar o fallar.
 
 ## Artefactos propios
 
