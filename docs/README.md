@@ -63,6 +63,9 @@ El Gate 0 está **bloqueado para almacenamiento persistente de datos Deriv** por
 - [S3.9 — protocolo Jump digit (H2)](research/s3.9-protocol-jump-digit-v1.md)
 - [S3.10 — remediación de ingeniería](research/s3.10-engineering-remediation.md)
 - [S3.10 — enmienda prospectiva 001 (H1/H2)](research/s3.10-protocol-amendment-001.md)
+- [S3.11 — H1 Step Direction: implementación, potencia y decisión](research/s3.11-h1-campaign-report.md)
+- [S3.12 — enmienda prospectiva 002 (H1 V2 adaptativo)](research/s3.12-protocol-amendment-002.md)
+- [S3.12 — H1 V2 (MARKOV_1_ADAPTIVE): implementación, potencia y ejecución](research/s3.12-h1-v2-campaign-report.md)
 - [Even/Odd efímero](research/deriv-even-odd-session-protocol.md)
 - [Multipliers efímero](research/deriv-multiplier-session-protocol.md)
 

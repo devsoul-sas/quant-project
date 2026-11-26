@@ -2,12 +2,14 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
+import random
 import subprocess
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from decimal import Decimal
 from pathlib import Path
 from typing import TextIO
@@ -39,6 +41,7 @@ from devsoul_quant.application.research_runner import (
 from devsoul_quant.domain.digit_strategy import DigitDecisionPolicy
 from devsoul_quant.domain.execution_mode import parse_execution_mode
 from devsoul_quant.domain.multiplier import MultiplierPolicy
+from devsoul_quant.domain.replay import Tick
 
 
 class CliError(RuntimeError):
@@ -188,6 +191,22 @@ def _parser() -> argparse.ArgumentParser:
     )
     paper_session.add_argument("--confirm-paper-only", action="store_true")
 
+    campaign = commands.add_parser(
+        "campaign", help="run one frozen, bounded shadow research campaign (H1)"
+    )
+    campaign.add_argument("--spec", type=Path, required=True, help="campaign spec JSON path")
+    campaign.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="run end-to-end with deterministic synthetic ticks (no provider)",
+    )
+    campaign.add_argument(
+        "--dry-run-ticks",
+        type=int,
+        default=7400,
+        help="synthetic tick count for --dry-run (default: 7400)",
+    )
+
     research = commands.add_parser(
         "research", help="run reproducible provider-independent research"
     )
@@ -237,6 +256,8 @@ def main(argv: Sequence[str] | None = None, *, stdout: TextIO | None = None) -> 
         return _run_autonomous_demo(arguments, destination)
     if arguments.command == "paper-session":
         return _run_paper_session(arguments, destination)
+    if arguments.command == "campaign":
+        return _run_campaign(arguments, destination)
     raise AssertionError("argparse accepted an unsupported command")  # pragma: no cover
 
 
@@ -666,6 +687,138 @@ def _run_paper_session(arguments: argparse.Namespace, destination: TextIO) -> in
         + "\n"
     )
     return 0
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _campaign_payload(result: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "classification": result.classification,  # type: ignore[attr-defined]
+        "decision_reasons": list(result.decision_reasons),  # type: ignore[attr-defined]
+        "ticks_received": result.ticks_received,  # type: ignore[attr-defined]
+        "valid_transitions": result.valid_transitions,  # type: ignore[attr-defined]
+        "flat_transitions": result.flat_transitions,  # type: ignore[attr-defined]
+        "discontinuous_transitions": result.discontinuous_transitions,  # type: ignore[attr-defined]
+        "nominal_cadence": result.nominal_cadence,  # type: ignore[attr-defined]
+        "effective_sample_size": _dec(result.effective_sample_size),  # type: ignore[attr-defined]
+        "warmup_p_up": _dec(result.warmup_p_up),  # type: ignore[attr-defined]
+        "causal_p_up": _dec(result.causal_p_up),  # type: ignore[attr-defined]
+        "improvement_memoryless_adaptive": _dec(result.improvement_memoryless_adaptive),  # type: ignore[attr-defined]
+        "improvement_memoryless_markov": _dec(result.improvement_memoryless_markov),  # type: ignore[attr-defined]
+        "improvement_causal_adaptive": _dec(result.improvement_causal_adaptive),  # type: ignore[attr-defined]
+        "bootstrap_lower_bound": _dec(result.bootstrap_lower_bound),  # type: ignore[attr-defined]
+        "p_marginal": _dec(result.p_marginal),  # type: ignore[attr-defined]
+        "p_lag1": _dec(result.p_lag1),  # type: ignore[attr-defined]
+        "holm_significant_marginal": result.holm_significant_marginal,  # type: ignore[attr-defined]
+        "holm_significant_lag1": result.holm_significant_lag1,  # type: ignore[attr-defined]
+        "economic_eligibility": result.economic_eligibility,  # type: ignore[attr-defined]
+        "contractual_correspondence": result.contractual_correspondence,  # type: ignore[attr-defined]
+        "models": [
+            {
+                "model": model.model,
+                "observations": model.observations,
+                "brier_score": _dec(model.brier_score),
+                "log_loss": _dec(model.log_loss),
+                "accuracy": _dec(model.accuracy),
+            }
+            for model in result.models  # type: ignore[attr-defined]
+        ],
+    }
+    return payload
+
+
+def _dec(value: object) -> str | None:
+    return None if value is None else str(value)
+
+
+def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
+    from devsoul_quant.application.campaign_spec import InvalidCampaignSpec, load_campaign_spec
+    from devsoul_quant.application.h1_campaign import run_h1_campaign
+
+    try:
+        spec_data = json.loads(arguments.spec.read_text(encoding="utf-8"))
+        spec = load_campaign_spec(spec_data)
+    except (InvalidCampaignSpec, KeyError, ValueError, OSError) as error:
+        destination.write(f"error: {error}\n")
+        return 2
+
+    for name, _expected in (
+        ("protocol", spec.protocol),
+        ("amendment", spec.amendment),
+    ):
+        path = Path(spec.protocol if name == "protocol" else spec.amendment)
+        if not path.is_file():
+            destination.write(f"error: {name} file not found: {path}\n")
+            return 2
+        expected_hash = spec.protocol_hash if name == "protocol" else spec.amendment_hash
+        if _sha256(path) != expected_hash:
+            destination.write(f"error: {name} hash mismatch; spec is not frozen\n")
+            return 2
+
+    if arguments.dry_run:
+        collect = _synthetic_dry_run_collect(arguments.dry_run_ticks, cadence=2, seed=spec.seed)
+    else:
+        token = os.getenv("DEVSOUL_QUANT_DERIV_TOKEN", "")
+        app_id = os.getenv("DEVSOUL_QUANT_DERIV_APP_ID", "")
+        account_id = os.getenv("DEVSOUL_QUANT_DERIV_ACCOUNT") or None
+        if not token or not app_id:
+            destination.write("error: demo credentials are not configured\n")
+            return 2
+        from devsoul_quant.adapters.deriv.client import collect_ticks_resilient
+        from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+
+        def resolve_url() -> str:
+            return resolve_demo_url(
+                UrllibSession(), token=token, app_id=app_id, account_id=account_id
+            )
+
+        def collect(count: int, remaining: float) -> tuple[Tick, ...]:
+            return asyncio.run(
+                collect_ticks_resilient(
+                    resolve_url,
+                    spec.instrument,
+                    count=count,
+                    heartbeat_seconds=10,
+                    deadline_remaining=remaining,
+                )
+            )
+
+    try:
+        result = run_h1_campaign(spec=spec, collect_ticks=collect)
+    except Exception:
+        destination.write("error: campaign stopped safely; no provider state retained\n")
+        return 2
+    destination.write(
+        json.dumps({"type": "final", **_campaign_payload(result)}, sort_keys=True) + "\n"
+    )
+    return 0
+
+
+def _synthetic_dry_run_collect(
+    total_ticks: int, *, cadence: int, seed: int
+) -> Callable[[int, float], tuple[Tick, ...]]:
+    """Deterministic synthetic step feed for the end-to-end dry-run."""
+    generator = random.Random(seed)
+    epoch = 1
+    quote = Decimal("100.00")
+
+    def collect(count: int, remaining: float) -> tuple[Tick, ...]:
+        nonlocal total_ticks, epoch, quote
+        if total_ticks <= 0:
+            return ()
+        take = min(count, total_ticks)
+        total_ticks -= take
+        ticks: list[Tick] = []
+        for _ in range(take):
+            direction = generator.randrange(2)
+            quote += Decimal("0.10") if direction else -Decimal("0.10")
+            epoch += cadence
+            ticks.append(Tick(epoch, quote, pip_size=1))
+        return tuple(ticks)
+
+    return collect
 
 
 def _run_research(arguments: argparse.Namespace, destination: TextIO) -> int:
