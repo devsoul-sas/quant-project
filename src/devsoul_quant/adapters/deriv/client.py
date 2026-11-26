@@ -71,6 +71,19 @@ def _validate_heartbeat(heartbeat_seconds: int) -> None:
         raise DerivClientError("heartbeat_seconds must be a non-negative integer")
 
 
+def _collection_timeout(deadline_remaining: float | None) -> float:
+    """Cap collection time by the session deadline, never above the hard bound."""
+    if deadline_remaining is None:
+        return MAX_COLLECTION_SECONDS
+    if (
+        isinstance(deadline_remaining, bool)
+        or not isinstance(deadline_remaining, (int, float))
+        or deadline_remaining <= 0
+    ):
+        raise DerivClientError("deadline_remaining must be a positive number")
+    return min(float(MAX_COLLECTION_SECONDS), float(deadline_remaining))
+
+
 async def _collect_once(
     url: str,
     symbol: str,
@@ -147,6 +160,7 @@ async def collect_ticks(
     clock: Callable[[], int] | None = None,
     heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS,
     sleep: Callable[[float], Any] = asyncio.sleep,
+    deadline_remaining: float | None = None,
 ) -> tuple[Tick, ...]:
     """Collect ``count`` ticks from a single demo connection and release it."""
     validate_demo_websocket_url(url)
@@ -157,7 +171,7 @@ async def collect_ticks(
     now = clock if clock is not None else lambda: int(time.time())
     cache = EphemeralTickCache()
     try:
-        async with asyncio.timeout(MAX_COLLECTION_SECONDS):
+        async with asyncio.timeout(_collection_timeout(deadline_remaining)):
             received = await _collect_once(
                 url,
                 symbol,
@@ -186,6 +200,7 @@ async def collect_ticks_resilient(
     clock: Callable[[], int] | None = None,
     heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS,
     sleep: Callable[[float], Any] = asyncio.sleep,
+    deadline_remaining: float | None = None,
 ) -> tuple[Tick, ...]:
     """Collect ``count`` ticks across as many OTP connections as needed.
 
@@ -202,7 +217,7 @@ async def collect_ticks_resilient(
     cache = EphemeralTickCache()
     collected = 0
     try:
-        async with asyncio.timeout(MAX_COLLECTION_SECONDS):
+        async with asyncio.timeout(_collection_timeout(deadline_remaining)):
             while collected < count:
                 url = resolve_url()
                 validate_demo_websocket_url(url)

@@ -484,6 +484,9 @@ def _run_autonomous_demo(arguments: argparse.Namespace, destination: TextIO) -> 
     from devsoul_quant.adapters.deriv.client import collect_ticks
     from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
     from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+    from devsoul_quant.application.session_deadline import SessionDeadline
+
+    session_deadline: SessionDeadline | None = None
 
     def resolve_url() -> str:
         return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
@@ -495,6 +498,7 @@ def _run_autonomous_demo(arguments: argparse.Namespace, destination: TextIO) -> 
                 symbol,
                 count=count,
                 heartbeat_seconds=10,
+                deadline_remaining=session_deadline.remaining() if session_deadline else None,
             )
         )
 
@@ -530,6 +534,9 @@ def _run_autonomous_demo(arguments: argparse.Namespace, destination: TextIO) -> 
             maximum_contracts=arguments.maximum_contracts,
             maximum_session_loss=arguments.maximum_session_loss,
             kill_switch_enabled=False,
+        )
+        session_deadline = SessionDeadline(
+            session_seconds=arguments.session_seconds, monotonic=time.monotonic
         )
         result = run_autonomous_demo(
             config=config,

@@ -1,0 +1,20 @@
+{
+  "campaign_id": "H1_STEP_SHADOW_001",
+  "protocol": "docs/research/s3.9-protocol-step-direction-v1.md",
+  "protocol_hash": "0e954428fa25caa4d3b526a81ace39a789400c21775fd5f44ea57ba8d3024610",
+  "instrument": "stpRNG",
+  "hypothesis": "STEP_DIRECTION_DEPENDENCE_V1",
+  "mode": "SHADOW_TRADING",
+  "maximum_duration_seconds": 14400,
+  "warmup_labels": 120,
+  "minimum_sample_size": 1200,
+  "seed": 42,
+  "baselines": ["MEMORYLESS", "FREQUENCY_CAUSAL"],
+  "metrics": ["BRIER", "LOG_LOSS"],
+  "gates": ["IMPROVEMENT_GATE", "ECONOMIC_GATE"],
+  "fixed_stake": 0.0,
+  "maximum_contracts": 0,
+  "maximum_session_loss": 0.0,
+  "data_policy": "EPHEMERAL_ONLY",
+  "stop_conditions": ["SESSION_DEADLINE", "MINIMUM_SAMPLE"]
+}

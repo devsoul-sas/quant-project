@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, replace
+from collections import deque
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 
 from devsoul_quant.domain.adaptive_intelligence import (
@@ -25,6 +26,31 @@ _MODEL_NAMES = (
     "GAUSSIAN_NB",
 )
 _EPSILON = Decimal("0.000000000001")
+
+
+def passes_improvement_gate(
+    *,
+    improvement: Decimal,
+    first_half: Decimal,
+    second_half: Decimal,
+    lower_bound: Decimal,
+    relevance_threshold: Decimal = Decimal("0.005"),
+) -> bool:
+    """Fail-closed S3.10/B1 improvement gate.
+
+    ``improvement = loss_baseline - loss_candidate``: a positive value means the
+    candidate is better than the baseline. Promotion requires the point
+    estimate, both chronological halves, and the lower bootstrap bound to be
+    strictly positive; the point estimate must also meet the preregistered
+    practical-relevance threshold. A lower bound ``<= 0`` (an interval crossing
+    zero) can never pass, whatever the point estimate.
+    """
+    return (
+        improvement >= relevance_threshold
+        and first_half > 0
+        and second_half > 0
+        and lower_bound > 0
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,19 +122,37 @@ class _PendingPrediction:
 
 @dataclass(slots=True)
 class _ScoreAccumulator:
-    probabilities: list[Decimal]
-    labels: list[int]
-    break_evens: list[Decimal]
-    estimated_values: list[Decimal]
-    signals: int
+    probabilities: list[Decimal] = field(default_factory=list)
+    labels: list[int] = field(default_factory=list)
+    break_evens: list[Decimal] = field(default_factory=list)
+    estimated_values: list[Decimal] = field(default_factory=list)
+    signals: int = 0
+    _count: int = 0
+    _brier_sum: Decimal = Decimal("0")
+    _log_loss_sum: Decimal = Decimal("0")
+    _correct: int = 0
+    _bin_prob_sum: list[Decimal] = field(default_factory=lambda: [Decimal("0")] * 10)
+    _bin_label_sum: list[Decimal] = field(default_factory=lambda: [Decimal("0")] * 10)
+    _bin_count: list[int] = field(default_factory=lambda: [0] * 10)
 
     @classmethod
     def empty(cls) -> _ScoreAccumulator:
-        return cls([], [], [], [], 0)
+        return cls()
 
     def add(self, probability: Decimal, label: int) -> None:
         self.probabilities.append(probability)
         self.labels.append(label)
+        self._count += 1
+        self._brier_sum += (probability - Decimal(label)) ** 2
+        clipped = max(_EPSILON, min(Decimal(1) - _EPSILON, probability))
+        self._log_loss_sum -= (
+            Decimal(label) * clipped.ln() + Decimal(1 - label) * (Decimal(1) - clipped).ln()
+        )
+        self._correct += (probability >= Decimal("0.5")) is bool(label)
+        bin_index = min(9, int(probability * Decimal(10)))
+        self._bin_prob_sum[bin_index] += probability
+        self._bin_label_sum[bin_index] += Decimal(label)
+        self._bin_count[bin_index] += 1
 
     def add_opportunity(
         self, *, break_even: Decimal, estimated_value: Decimal, signal: bool
@@ -118,7 +162,7 @@ class _ScoreAccumulator:
         self.signals += int(signal)
 
     def metrics(self, model: str) -> AdaptiveModelMetrics:
-        count = len(self.labels)
+        count = self._count
         opportunities = len(self.break_evens)
         opportunity_count = Decimal(opportunities) if opportunities else None
         signal_coverage = (
@@ -149,55 +193,26 @@ class _ScoreAccumulator:
                 mean_estimated_value=mean_estimated_value,
             )
         denominator = Decimal(count)
-        brier = (
-            sum(
-                (
-                    (probability - Decimal(label)) ** 2
-                    for probability, label in zip(self.probabilities, self.labels, strict=True)
-                ),
-                start=Decimal("0"),
-            )
-            / denominator
-        )
-        log_loss = (
-            sum(
-                (
-                    -(
-                        Decimal(label) * max(_EPSILON, min(Decimal(1) - _EPSILON, probability)).ln()
-                        + Decimal(1 - label)
-                        * (Decimal(1) - max(_EPSILON, min(Decimal(1) - _EPSILON, probability))).ln()
-                    )
-                    for probability, label in zip(self.probabilities, self.labels, strict=True)
-                ),
-                start=Decimal("0"),
-            )
-            / denominator
-        )
-        correct = sum(
-            (probability >= Decimal("0.5")) is bool(label)
-            for probability, label in zip(self.probabilities, self.labels, strict=True)
-        )
+        brier = self._brier_sum / denominator
+        log_loss = self._log_loss_sum / denominator
+        accuracy = Decimal(self._correct) / denominator
         calibration_total = Decimal("0")
         for bin_index in range(10):
-            members = tuple(
-                (probability, label)
-                for probability, label in zip(self.probabilities, self.labels, strict=True)
-                if min(9, int(probability * Decimal(10))) == bin_index
-            )
-            if not members:
+            member_count = self._bin_count[bin_index]
+            if not member_count:
                 continue
-            member_count = Decimal(len(members))
-            mean_probability = sum((item[0] for item in members), start=Decimal("0")) / member_count
-            mean_label = (
-                sum((Decimal(item[1]) for item in members), start=Decimal("0")) / member_count
+            member_count_decimal = Decimal(member_count)
+            mean_probability = self._bin_prob_sum[bin_index] / member_count_decimal
+            mean_label = self._bin_label_sum[bin_index] / member_count_decimal
+            calibration_total += (
+                member_count_decimal / denominator * abs(mean_probability - mean_label)
             )
-            calibration_total += member_count / denominator * abs(mean_probability - mean_label)
         return AdaptiveModelMetrics(
             model=model,
             observations=count,
             brier_score=brier,
             log_loss=log_loss,
-            accuracy=Decimal(correct) / denominator,
+            accuracy=accuracy,
             expected_calibration_error=calibration_total,
             quoted_opportunities=opportunities,
             signals=self.signals,
@@ -212,6 +227,14 @@ class _ScoreAccumulator:
         self.break_evens.clear()
         self.estimated_values.clear()
         self.signals = 0
+        self._count = 0
+        self._brier_sum = Decimal("0")
+        self._log_loss_sum = Decimal("0")
+        self._correct = 0
+        for index in range(10):
+            self._bin_prob_sum[index] = Decimal("0")
+            self._bin_label_sum[index] = Decimal("0")
+            self._bin_count[index] = 0
 
 
 class AdaptivePrequentialEvaluator:
@@ -226,7 +249,7 @@ class AdaptivePrequentialEvaluator:
         self._seed = seed
         self._logistic = IncrementalLogisticRegression(feature_count=6)
         self._gaussian = IncrementalGaussianNaiveBayes(feature_count=6)
-        self._history: list[Tick] = []
+        self._window: deque[Tick] = deque(maxlen=6)
         self._pending: _PendingPrediction | None = None
         self._resolved_labels = 0
         self._positive_labels = 0
@@ -237,9 +260,9 @@ class AdaptivePrequentialEvaluator:
         self._parity_frequency = _ScoreAccumulator.empty()
 
     def observe(self, tick: Tick) -> AdaptivePrediction | None:
-        if self._history and tick.epoch <= self._history[-1].epoch:
+        if self._window and tick.epoch <= self._window[-1].epoch:
             raise InvalidAdaptiveInput("ticks must arrive in strictly increasing order")
-        self._history.append(tick)
+        self._window.append(tick)
         if self._pending is not None:
             label = int(tick.quote > self._pending.decision_quote)
             parity_label = int(last_digit(tick) % 2 == 0)
@@ -254,15 +277,15 @@ class AdaptivePrequentialEvaluator:
             self._positive_labels += label
             self._even_labels += parity_label
             self._pending = None
-        if len(self._history) < 6:
+        if len(self._window) < 6:
             return None
-        features = build_adaptive_features(self._history, decision_epoch=tick.epoch)
+        features = build_adaptive_features(tuple(self._window), decision_epoch=tick.epoch)
         causal_frequency = Decimal(self._positive_labels + 1) / Decimal(self._resolved_labels + 2)
         parity_frequency = Decimal(self._even_labels + 1) / Decimal(self._resolved_labels + 2)
-        if len(self._history) < 2 or tick.quote == self._history[-2].quote:
+        if len(self._window) < 2 or tick.quote == self._window[-2].quote:
             momentum = Decimal("0.5")
         else:
-            momentum = Decimal("0.55") if tick.quote > self._history[-2].quote else Decimal("0.45")
+            momentum = Decimal("0.55") if tick.quote > self._window[-2].quote else Decimal("0.45")
         generator = random.Random(self._seed + self._prediction_index)
         controlled_random = Decimal("0.55") if generator.randrange(2) else Decimal("0.45")
         probabilities = {
@@ -346,10 +369,12 @@ class AdaptivePrequentialEvaluator:
             enriched[name] = metrics
             baseline_metrics = enriched["CAUSAL_FREQUENCY"]
             if (
-                improvement >= Decimal("0.005")
-                and first_half > 0
-                and second_half > 0
-                and lower_bound > 0
+                passes_improvement_gate(
+                    improvement=improvement,
+                    first_half=first_half,
+                    second_half=second_half,
+                    lower_bound=lower_bound,
+                )
                 and metrics.expected_calibration_error is not None
                 and metrics.expected_calibration_error <= Decimal("0.05")
                 and metrics.log_loss is not None
@@ -412,11 +437,7 @@ class AdaptivePrequentialEvaluator:
         call_break_even: Decimal,
         put_break_even: Decimal,
     ) -> None:
-        if (
-            self._pending is None
-            or not self._history
-            or prediction.epoch != self._history[-1].epoch
-        ):
+        if self._pending is None or not self._window or prediction.epoch != self._window[-1].epoch:
             raise InvalidAdaptiveInput("quotes must correspond to the current pending prediction")
         for value in (call_break_even, put_break_even):
             if not isinstance(value, Decimal) or not value.is_finite() or not 0 < value < 1:
@@ -438,7 +459,7 @@ class AdaptivePrequentialEvaluator:
             )
 
     def clear(self) -> None:
-        self._history.clear()
+        self._window.clear()
         self._pending = None
         self._resolved_labels = 0
         self._positive_labels = 0

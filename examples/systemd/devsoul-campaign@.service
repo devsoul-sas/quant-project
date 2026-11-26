@@ -1,0 +1,23 @@
+# Example systemd --user template for a pre-authorized local campaign (S3.10/F).
+#
+# NOT INSTALLED and NOT ENABLED. This file is a reference only. It shows how a
+# deterministic, LLM-free campaign (LLM calls during quantitative execution = 0)
+# can be run by systemd --user independently of an interactive agent session.
+# Credentials are read from the environment via EnvironmentFile and are never
+# embedded here. No service is created or started by this remediation.
+#
+# Usage (only after explicit campaign authorization, never in this stage):
+#   systemctl --user enable --now devsoul-campaign@H1_STEP_SHADOW_001.service
+#
+# A concrete instance requires a %i.env file under ~/.config/devsoul/ with the
+# demo token/app id, which is deliberately NOT shipped here.
+
+[Unit]
+Description=DevSoul Quant local campaign %i (reference template, disabled)
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/devsoul/%i.env
+WorkingDirectory=%h/workspace/devsoul/quant
+ExecStart=%h/.local/bin/uv run devsoul-quant autonomous-demo --mode shadow --symbol stpRNG --session-seconds 14400 --seed 42
