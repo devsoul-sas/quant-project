@@ -8,6 +8,17 @@
 
 Esta evaluación técnica de derechos no sustituye asesoría jurídica.
 
+> **NOTA DE CORRECCIÓN (2026-11-24, S4):** el veredicto de rechazo de esta evaluación
+> aplica al canal **Binance Vision** (descarga masiva `data.binance.vision`), y sigue
+> siendo correcto para ese canal. No obstante, la vía que S4 necesita — operar capital
+> propio por la **API de exchange** — está gobernada por los **Exchange ToU** (vigentes
+> desde 2026-10-27) y los **API Keys Product Terms v2.0** (desde 2026-07-09), que esta
+> evaluación no analizó por separado. La reevaluación en
+> `docs/research/s4-data-provider-assessment.md` (con cláusulas verbatim y SHA-256) halló
+> que esos instrumentos **sí** contemplan "constructing automated trading systems"
+> (ToU Cl. 33.7) y licencia para "internal business use" (ToU Cl. 27). Veredicto para la
+> vía API: **CONDICIONAL** (no aprobado pleno), pendiente de dos clarificaciones escritas.
+
 ## Conclusión ejecutiva
 
 Binance Vision publicó términos específicos, versión 1.0, actualizados el 26 de agosto de
