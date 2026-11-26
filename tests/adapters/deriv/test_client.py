@@ -171,3 +171,59 @@ def test_collect_ticks_rejects_unbounded_samples_before_connecting() -> None:
         asyncio.run(collect_ticks(DEMO_URL, "R_100", count=MAX_TICK_COUNT + 1, connect=connect))
 
     assert connected is False
+
+
+class YieldingWebSocket(FakeWebSocket):
+    """Fake socket that yields control on each read so the heartbeat task can run."""
+
+    async def __anext__(self) -> str | bytes:
+        await asyncio.sleep(0)
+        return await super().__anext__()
+
+
+def test_collect_ticks_sends_heartbeat_pings_during_collection() -> None:
+    websocket = YieldingWebSocket(
+        [
+            json.dumps({"tick": {"epoch": 100, "quote": "1.0"}}),
+            json.dumps({"tick": {"epoch": 101, "quote": "2.0"}}),
+            json.dumps({"tick": {"epoch": 102, "quote": "3.0"}}),
+        ]
+    )
+
+    async def noop_sleep(_seconds: float) -> None:
+        await asyncio.sleep(0)
+
+    ticks = asyncio.run(
+        collect_ticks(
+            DEMO_URL,
+            "R_100",
+            count=3,
+            connect=_connect_returning(websocket),
+            heartbeat_seconds=1,
+            sleep=noop_sleep,
+        )
+    )
+
+    assert len(ticks) == 3
+    assert any(json.loads(sent) == {"ping": 1} for sent in websocket.sent)
+
+
+def test_collect_ticks_ignores_heartbeat_pong_responses() -> None:
+    websocket = FakeWebSocket(
+        [
+            json.dumps({"subscription": {"id": "sub-1"}}),
+            json.dumps({"ping": "pong", "msg_type": "ping", "echo_req": {"ping": 1}}),
+            json.dumps({"tick": {"epoch": 100, "quote": "5.0"}}),
+        ]
+    )
+
+    ticks = asyncio.run(
+        collect_ticks(DEMO_URL, "R_100", count=1, connect=_connect_returning(websocket))
+    )
+
+    assert [tick.quote for tick in ticks] == [Decimal("5.0")]
+
+
+def test_collect_ticks_rejects_a_negative_heartbeat() -> None:
+    with pytest.raises(DerivClientError, match="heartbeat"):
+        asyncio.run(collect_ticks(DEMO_URL, "R_100", count=1, heartbeat_seconds=-1))

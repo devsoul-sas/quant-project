@@ -168,6 +168,24 @@ def test_ambiguous_buy_reconciles_once_and_never_retries() -> None:
     assert gateway.calls == ["propose", "buy", "reconcile"]
 
 
+def test_ambiguous_buy_can_reconcile_with_a_fresh_demo_gateway() -> None:
+    execution_gateway = FakeGateway(fail_buy=True)
+    recovery_gateway = FakeGateway()
+
+    with pytest.raises(AmbiguousDemoExecution) as captured:
+        execute_demo_intent(
+            _intent(),
+            gateway=execution_gateway,
+            reconciliation_gateway=recovery_gateway,
+            limits=_limits(),
+            session=DemoSession(),
+        )
+
+    assert captured.value.open_contract_ids == ("contract-unknown",)
+    assert execution_gateway.calls == ["propose", "buy"]
+    assert recovery_gateway.calls == ["reconcile"]
+
+
 def test_ambiguous_settlement_reconciles_once_and_never_rebuys() -> None:
     gateway = FakeGateway(fail_settlement=True)
 

@@ -108,6 +108,14 @@ class DemoExecutionGateway(Protocol):
     def reconcile(self) -> tuple[str, ...]: ...
 
 
+class DemoReconciliationGateway(Protocol):
+    """Minimal port for state verification over a fresh demo connection."""
+
+    account_type: str
+
+    def reconcile(self) -> tuple[str, ...]: ...
+
+
 class DemoSession:
     """Bounded transient state with explicit zeroization by reference removal."""
 
@@ -141,6 +149,7 @@ def execute_demo_intent(
     intent: EnterContractIntent,
     *,
     gateway: DemoExecutionGateway,
+    reconciliation_gateway: DemoReconciliationGateway | None = None,
     limits: DemoExecutionLimits,
     session: DemoSession,
 ) -> DemoExecutionResult:
@@ -149,6 +158,8 @@ def execute_demo_intent(
         raise DemoTradeRejected("kill switch is enabled")
     if gateway.account_type != "demo":
         raise DemoTradeRejected("execution requires a provider-confirmed demo account")
+    if reconciliation_gateway is not None and reconciliation_gateway.account_type != "demo":
+        raise DemoTradeRejected("reconciliation requires a provider-confirmed demo account")
     if intent.amount_requested != limits.fixed_stake:
         raise DemoTradeRejected("intent amount must equal the fixed stake")
     if session.contract_count >= limits.maximum_contracts:
@@ -165,7 +176,7 @@ def execute_demo_intent(
     try:
         contract_id = gateway.buy(proposal)
     except Exception as error:
-        reconciled = gateway.reconcile()
+        reconciled = (reconciliation_gateway or gateway).reconcile()
         raise AmbiguousDemoExecution(
             f"demo purchase outcome is ambiguous; reconciled {len(reconciled)} open contracts",
             reconciled,
@@ -174,13 +185,13 @@ def execute_demo_intent(
     try:
         settlement = gateway.await_settlement(contract_id)
     except Exception as error:
-        reconciled = gateway.reconcile()
+        reconciled = (reconciliation_gateway or gateway).reconcile()
         raise AmbiguousDemoExecution(
             f"demo settlement is ambiguous; reconciled {len(reconciled)} open contracts",
             reconciled,
         ) from error
     if settlement.contract_id != contract_id:
-        reconciled = gateway.reconcile()
+        reconciled = (reconciliation_gateway or gateway).reconcile()
         raise AmbiguousDemoExecution(
             "settlement contract does not match the purchased contract", reconciled
         )

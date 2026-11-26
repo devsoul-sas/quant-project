@@ -75,10 +75,21 @@ class DerivDemoExecutionGateway:
         url: str,
         *,
         connect: Callable[[str], Any] | None = None,
+        request_timeout_seconds: float = 30.0,
         settlement_timeout_seconds: float = 3600.0,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         validate_demo_websocket_url(url)
+        try:
+            request_timeout = float(request_timeout_seconds)
+        except (OverflowError, TypeError, ValueError):
+            request_timeout = math.nan
+        if isinstance(request_timeout_seconds, bool) or not (
+            math.isfinite(request_timeout) and 0 < request_timeout <= 3600
+        ):
+            raise DerivDemoExecutionError(
+                "request timeout must be positive and no greater than one hour"
+            )
         try:
             timeout = float(settlement_timeout_seconds)
         except (OverflowError, TypeError, ValueError):
@@ -91,10 +102,14 @@ class DerivDemoExecutionGateway:
             )
         self._url = url
         self._connect = connect if connect is not None else _default_connect
+        self._request_timeout_seconds = request_timeout
         self._settlement_timeout_seconds = timeout
         self._monotonic = monotonic
         self._connection: Any | None = None
         self._socket: Any | None = None
+        self._used_req_ids: set[int] = set()
+        self._next_req_id = 9
+        self._attempted_proposal_ids: set[str] = set()
 
     def __enter__(self) -> DerivDemoExecutionGateway:
         if self._socket is not None:
@@ -125,19 +140,57 @@ class DerivDemoExecutionGateway:
             message = json.loads(raw)  # type: ignore[arg-type]
         except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
             raise DerivDemoExecutionError("Deriv returned an invalid response") from None
-        result = _mapping(message, "response object")
-        if "error" in result:
+        return _mapping(message, "response object")
+
+    @staticmethod
+    def _raise_provider_error(message: Mapping[str, Any]) -> None:
+        if "error" in message:
             raise DerivDemoExecutionError("Deriv rejected the demo request")
-        return result
+
+    def _reserve_req_id(self, preferred_req_id: object) -> int:
+        if type(preferred_req_id) is int and preferred_req_id not in self._used_req_ids:
+            req_id = preferred_req_id
+        else:
+            while self._next_req_id in self._used_req_ids:
+                self._next_req_id += 1
+            req_id = self._next_req_id
+            self._next_req_id += 1
+        self._used_req_ids.add(req_id)
+        return req_id
 
     def _request(self, payload: Mapping[str, object]) -> Mapping[str, Any]:
+        outbound = dict(payload)
+        expected_req_id = self._reserve_req_id(outbound.get("req_id"))
+        outbound["req_id"] = expected_req_id
+        expected_response_key = next(
+            key
+            for key in ("proposal", "buy", "portfolio", "contracts_for", "active_symbols", "forget")
+            if key in outbound
+        )
+        deadline = self._monotonic() + self._request_timeout_seconds
+
+        def receive(websocket: Any) -> Mapping[str, Any]:
+            while True:
+                remaining = deadline - self._monotonic()
+                if remaining <= 0:
+                    raise DerivDemoExecutionError("demo request deadline expired")
+                message = self._decode(websocket.recv(timeout=remaining))
+                actual_req_id = message.get("req_id")
+                if actual_req_id == expected_req_id:
+                    self._raise_provider_error(message)
+                    return message
+                if actual_req_id is None:
+                    self._raise_provider_error(message)
+                    if expected_response_key in message:
+                        return message
+
         try:
             if self._socket is not None:
-                self._socket.send(json.dumps(payload, separators=(",", ":"), sort_keys=True))
-                return self._decode(self._socket.recv(timeout=30))
+                self._socket.send(json.dumps(outbound, separators=(",", ":"), sort_keys=True))
+                return receive(self._socket)
             with self._connect(self._url) as websocket:
-                websocket.send(json.dumps(payload, separators=(",", ":"), sort_keys=True))
-                return self._decode(websocket.recv(timeout=30))
+                websocket.send(json.dumps(outbound, separators=(",", ":"), sort_keys=True))
+                return receive(websocket)
         except DerivDemoExecutionError:
             raise
         except Exception as error:
@@ -267,6 +320,9 @@ class DerivDemoExecutionGateway:
         )
 
     def buy(self, proposal: DemoProposal) -> str:
+        if proposal.proposal_id in self._attempted_proposal_ids:
+            raise DerivDemoExecutionError("demo proposal purchase was already attempted")
+        self._attempted_proposal_ids.add(proposal.proposal_id)
         message = self._request(
             {
                 "buy": proposal.proposal_id,
@@ -278,10 +334,12 @@ class DerivDemoExecutionGateway:
         return _contract_id(buy.get("contract_id"))
 
     def await_settlement(self, contract_id: str) -> DemoSettlement:
+        expected_contract_id = _contract_id(contract_id)
         try:
             request_contract_id: str | int = int(contract_id)
         except ValueError:
             request_contract_id = contract_id
+        request_req_id = self._reserve_req_id(3)
 
         def wait(websocket: Any) -> DemoSettlement:
             subscription_id: str | None = None
@@ -292,7 +350,7 @@ class DerivDemoExecutionGateway:
                         "proposal_open_contract": 1,
                         "contract_id": request_contract_id,
                         "subscribe": 1,
-                        "req_id": 3,
+                        "req_id": request_req_id,
                     },
                     separators=(",", ":"),
                     sort_keys=True,
@@ -304,22 +362,36 @@ class DerivDemoExecutionGateway:
                     if remaining <= 0:
                         raise DerivDemoExecutionError("demo settlement deadline expired")
                     message = self._decode(websocket.recv(timeout=remaining))
+                    actual_req_id = message.get("req_id")
+                    if actual_req_id is not None and actual_req_id != request_req_id:
+                        continue
+                    self._raise_provider_error(message)
+                    if "proposal_open_contract" not in message:
+                        if actual_req_id is None:
+                            continue
+                        raise DerivDemoExecutionError(
+                            "Deriv response is missing proposal_open_contract"
+                        )
+                    lifecycle = _mapping(
+                        message.get("proposal_open_contract"), "proposal_open_contract"
+                    )
+                    if _contract_id(lifecycle.get("contract_id")) != expected_contract_id:
+                        continue
                     subscription = message.get("subscription")
                     if isinstance(subscription, Mapping):
                         candidate = subscription.get("id")
                         if isinstance(candidate, str) and candidate:
                             subscription_id = candidate
-                    lifecycle = _mapping(
-                        message.get("proposal_open_contract"), "proposal_open_contract"
-                    )
                     if lifecycle.get("is_sold") in (1, True):
                         return DemoSettlement(
-                            contract_id=_contract_id(lifecycle.get("contract_id")),
+                            contract_id=expected_contract_id,
                             profit=_decimal(lifecycle.get("profit"), "profit"),
                         )
             finally:
                 if subscription_id is not None:
-                    websocket.send(json.dumps({"forget": subscription_id, "req_id": 4}))
+                    websocket.send(
+                        json.dumps({"forget": subscription_id, "req_id": self._reserve_req_id(4)})
+                    )
 
         try:
             if self._socket is not None:

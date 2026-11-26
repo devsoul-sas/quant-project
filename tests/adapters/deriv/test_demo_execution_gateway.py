@@ -363,3 +363,150 @@ def test_gateway_reuses_one_otp_connection_for_the_full_lifecycle() -> None:
     assert settlement.profit == Decimal("0.80")
     assert connections.urls == [DEMO_URL]
     assert socket.closed is True
+
+
+def test_gateway_routes_pending_forget_ack_before_reconcile_response() -> None:
+    socket = FakeSocket(
+        [
+            {"proposal": {"id": "p-1", "ask_price": 1.0, "payout": 1.8}, "req_id": 1},
+            {"buy": {"contract_id": 123}, "req_id": 2},
+            {
+                "proposal_open_contract": {
+                    "contract_id": 123,
+                    "is_sold": 1,
+                    "profit": "0.80",
+                },
+                "subscription": {"id": "sub-1"},
+                "req_id": 3,
+            },
+            {"forget": "sub-1", "req_id": 4},
+            {"portfolio": {"contracts": []}, "req_id": 5},
+        ]
+    )
+
+    with DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket)) as gateway:
+        proposal = gateway.propose(_intent())
+        contract_id = gateway.buy(proposal)
+        gateway.await_settlement(contract_id)
+
+        assert gateway.reconcile() == ()
+
+    routed_timeouts = socket.recv_timeouts[-2:]
+    assert len(routed_timeouts) == 2
+    assert all(timeout is not None and 0 < timeout <= 30 for timeout in routed_timeouts)
+
+
+def test_gateway_uses_unique_req_ids_and_ignores_a_late_response() -> None:
+    socket = FakeSocket(
+        [
+            {"proposal": {"id": "p-1", "ask_price": 1.0, "payout": 1.8}, "req_id": 1},
+            {"proposal": {"id": "late", "ask_price": 1.0, "payout": 1.8}, "req_id": 1},
+            {"proposal": {"id": "p-2", "ask_price": 1.0, "payout": 1.8}, "req_id": 9},
+        ]
+    )
+    with DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket)) as gateway:
+        first = gateway.propose(_intent())
+        second = gateway.propose(_intent())
+        assert first.proposal_id == "p-1"
+        assert second.proposal_id == "p-2"
+    assert [message["req_id"] for message in socket.sent] == [1, 9]
+
+
+def test_gateway_uses_one_absolute_deadline_while_routing_request_frames() -> None:
+    socket = FakeSocket(
+        [
+            {"forget": "old-subscription", "req_id": 4},
+            {"proposal": {"id": "p-1", "ask_price": 1.0, "payout": 1.8}, "req_id": 1},
+        ]
+    )
+    times = iter((0.0, 2.0, 4.0))
+    gateway = DerivDemoExecutionGateway(
+        DEMO_URL,
+        connect=Connections(socket),
+        request_timeout_seconds=5.0,
+        monotonic=lambda: next(times),
+    )
+
+    assert gateway.propose(_intent()).proposal_id == "p-1"
+    assert socket.recv_timeouts == [3.0, 1.0]
+
+
+def test_gateway_routes_an_error_for_an_older_request_without_poisoning_current_request() -> None:
+    socket = FakeSocket(
+        [
+            {"error": {"code": "AlreadyForgotten"}, "req_id": 4},
+            {"proposal": {"id": "p-1", "ask_price": 1.0, "payout": 1.8}, "req_id": 1},
+        ]
+    )
+    gateway = DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket))
+
+    assert gateway.propose(_intent()).proposal_id == "p-1"
+
+
+def test_gateway_never_buys_the_same_proposal_twice() -> None:
+    socket = FakeSocket([{"buy": {"contract_id": 123}, "req_id": 2}])
+    proposal = DemoProposal("p-1", Decimal("1.00"), Decimal("1.80"))
+    with DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket)) as gateway:
+        assert gateway.buy(proposal) == "123"
+
+        with pytest.raises(DerivDemoExecutionError, match="already attempted"):
+            gateway.buy(proposal)
+
+    assert len(socket.sent) == 1
+
+
+def test_gateway_routes_async_messages_without_req_id_away_from_request_response() -> None:
+    socket = FakeSocket(
+        [
+            {"msg_type": "transaction", "transaction": {"action": "sell"}},
+            {"proposal": {"id": "p-1", "ask_price": 1.0, "payout": 1.8}},
+        ]
+    )
+    gateway = DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket))
+
+    assert gateway.propose(_intent()).proposal_id == "p-1"
+    assert len(socket.recv_timeouts) == 2
+
+
+def test_gateway_routes_late_subscription_updates_by_unique_request_and_contract() -> None:
+    socket = FakeSocket(
+        [
+            {
+                "proposal_open_contract": {
+                    "contract_id": 123,
+                    "is_sold": 1,
+                    "profit": "0.80",
+                },
+                "subscription": {"id": "sub-1"},
+                "req_id": 3,
+            },
+            {"forget": "sub-1", "req_id": 4},
+            {
+                "proposal_open_contract": {
+                    "contract_id": 123,
+                    "is_sold": 1,
+                    "profit": "0.80",
+                },
+                "req_id": 3,
+            },
+            {
+                "proposal_open_contract": {
+                    "contract_id": 456,
+                    "is_sold": 1,
+                    "profit": "-1.00",
+                },
+                "subscription": {"id": "sub-2"},
+                "req_id": 9,
+            },
+        ]
+    )
+    with DerivDemoExecutionGateway(DEMO_URL, connect=Connections(socket)) as gateway:
+        assert gateway.await_settlement("123").contract_id == "123"
+        assert gateway.await_settlement("456").contract_id == "456"
+
+    subscription_requests = [
+        message for message in socket.sent if "proposal_open_contract" in message
+    ]
+    forget_requests = [message for message in socket.sent if "forget" in message]
+    assert [message["req_id"] for message in subscription_requests] == [3, 9]
+    assert [message["req_id"] for message in forget_requests] == [4, 10]

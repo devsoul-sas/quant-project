@@ -107,7 +107,7 @@ def digit_parity_decision(
     )
     scored = tuple(
         (
-            _wilson_lower_bound(successes, sample_count, policy.z_score)
+            wilson_lower_bound(successes, sample_count, policy.z_score)
             - economics.ask_price / economics.payout,
             economics,
         )
@@ -134,7 +134,21 @@ def digit_parity_decision(
     )
 
 
-def _wilson_lower_bound(successes: int, sample_count: int, z_score: Decimal) -> Decimal:
+def wilson_lower_bound(successes: int, sample_count: int, z_score: Decimal) -> Decimal:
+    """Return the conservative Wilson lower bound of a success probability."""
+    lower, _ = _wilson_interval(successes, sample_count, z_score)
+    return lower
+
+
+def wilson_upper_bound(successes: int, sample_count: int, z_score: Decimal) -> Decimal:
+    """Return the Wilson upper bound of a success probability."""
+    _, upper = _wilson_interval(successes, sample_count, z_score)
+    return upper
+
+
+def _wilson_interval(
+    successes: int, sample_count: int, z_score: Decimal
+) -> tuple[Decimal, Decimal]:
     context = Context(prec=28, rounding=ROUND_HALF_EVEN)
     with localcontext(context):
         count = Decimal(sample_count)
@@ -146,4 +160,6 @@ def _wilson_lower_bound(successes: int, sample_count: int, z_score: Decimal) -> 
             probability * (Decimal(1) - probability) + z_squared / (Decimal(4) * count)
         ) / count
         margin = z_score * variance.sqrt()
-        return (centre - margin) / denominator
+        lower = (centre - margin) / denominator
+        upper = (centre + margin) / denominator
+        return lower, upper

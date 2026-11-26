@@ -5,10 +5,13 @@ collects a bounded number of ticks into memory, and releases the subscription.
 Nothing is persisted: the returned ticks live only as long as the caller holds
 them, subject to the ephemeral cache window enforced elsewhere.
 
-The demo OTP WebSocket has a short server-side lifetime, so a single connection
-can drop before the requested number of ticks arrives. ``collect_ticks_resilient``
-reconnects with a fresh OTP URL until the count is reached, while ``collect_ticks``
-keeps the single-connection semantics for callers that only need a small window.
+The demo OTP WebSocket has a short server-side lifetime and drops the connection
+abruptly (close code 1006) after ~120 s unless the client sends a keepalive
+``{"ping": 1}`` frame. ``_collect_once`` therefore runs a periodic heartbeat while
+collecting. A connection that still ends before ``remaining`` ticks (a clean or
+abrupt close) is treated as a normal end of the connection so a resilient caller
+can reconnect with a fresh OTP URL. Provider error messages and invalid payloads
+still raise.
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ import asyncio
 import json
 import time
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from typing import Any
 
 from websockets.exceptions import ConnectionClosed
@@ -27,6 +31,7 @@ from devsoul_quant.domain.replay import Tick
 
 MAX_TICK_COUNT = 10_000
 MAX_COLLECTION_SECONDS = 60 * 60
+DEFAULT_HEARTBEAT_SECONDS = 30
 
 
 class DerivClientError(RuntimeError):
@@ -61,6 +66,11 @@ def _validate(symbol: str, count: int) -> None:
         raise DerivClientError(f"count must be at most {MAX_TICK_COUNT}")
 
 
+def _validate_heartbeat(heartbeat_seconds: int) -> None:
+    if type(heartbeat_seconds) is not int or heartbeat_seconds < 0:
+        raise DerivClientError("heartbeat_seconds must be a non-negative integer")
+
+
 async def _collect_once(
     url: str,
     symbol: str,
@@ -69,33 +79,52 @@ async def _collect_once(
     connector: Callable[..., Any],
     now: Callable[[], int],
     cache: EphemeralTickCache,
+    heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS,
+    sleep: Callable[[float], Any] = asyncio.sleep,
 ) -> int:
     """Collect up to ``remaining`` ticks from one connection and return the count.
 
     A connection that ends before ``remaining`` ticks (a clean or abrupt close) is
     treated as a normal end of the connection so a resilient caller can reconnect
     with a fresh OTP URL. Provider error messages and invalid payloads still raise.
+
+    While collecting, a periodic ``{"ping": 1}`` keepalive is sent so the demo
+    server does not drop the connection for lack of client activity.
     """
     received = 0
     subscription_id: str | None = None
     try:
         async with connector(url) as websocket:
             await websocket.send(json.dumps({"ticks": symbol, "subscribe": 1}))
-            async for raw in websocket:
-                message = json.loads(_as_text(raw))
-                if "error" in message:
-                    raise DerivClientError(f"deriv returned an error: {message['error']}")
-                if "subscription" in message and subscription_id is None:
-                    subscription_id = _subscription_id(message)
-                    continue
-                if "tick" in message:
-                    tick = parse_deriv_tick(message)
-                    receipt_epoch = max(now(), tick.epoch)
-                    cache.store(tick, now_epoch=receipt_epoch)
-                    cache.expire(now_epoch=receipt_epoch)
-                    received += 1
-                    if received >= remaining:
-                        break
+
+            async def _heartbeat() -> None:
+                while True:
+                    await sleep(heartbeat_seconds)
+                    await websocket.send(json.dumps({"ping": 1}))
+
+            heartbeat_task = asyncio.create_task(_heartbeat()) if heartbeat_seconds > 0 else None
+            try:
+                async for raw in websocket:
+                    message = json.loads(_as_text(raw))
+                    if "error" in message:
+                        raise DerivClientError(f"deriv returned an error: {message['error']}")
+                    if "subscription" in message and subscription_id is None:
+                        subscription_id = _subscription_id(message)
+                        continue
+                    if "tick" in message:
+                        tick = parse_deriv_tick(message)
+                        receipt_epoch = max(now(), tick.epoch)
+                        cache.store(tick, now_epoch=receipt_epoch)
+                        cache.expire(now_epoch=receipt_epoch)
+                        received += 1
+                        if received >= remaining:
+                            break
+            finally:
+                if heartbeat_task is not None:
+                    heartbeat_task.cancel()
+                    with suppress(asyncio.CancelledError, ConnectionClosed):
+                        await heartbeat_task
+
             if subscription_id is not None:
                 await websocket.send(json.dumps({"forget": subscription_id}))
             else:
@@ -116,10 +145,13 @@ async def collect_ticks(
     count: int,
     connect: Callable[..., Any] | None = None,
     clock: Callable[[], int] | None = None,
+    heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS,
+    sleep: Callable[[float], Any] = asyncio.sleep,
 ) -> tuple[Tick, ...]:
     """Collect ``count`` ticks from a single demo connection and release it."""
     validate_demo_websocket_url(url)
     _validate(symbol, count)
+    _validate_heartbeat(heartbeat_seconds)
 
     connector = connect if connect is not None else _default_connect
     now = clock if clock is not None else lambda: int(time.time())
@@ -127,7 +159,14 @@ async def collect_ticks(
     try:
         async with asyncio.timeout(MAX_COLLECTION_SECONDS):
             received = await _collect_once(
-                url, symbol, remaining=count, connector=connector, now=now, cache=cache
+                url,
+                symbol,
+                remaining=count,
+                connector=connector,
+                now=now,
+                cache=cache,
+                heartbeat_seconds=heartbeat_seconds,
+                sleep=sleep,
             )
         if received < count:
             raise DerivClientError(f"demo connection ended before {count} ticks were collected")
@@ -145,6 +184,8 @@ async def collect_ticks_resilient(
     count: int,
     connect: Callable[..., Any] | None = None,
     clock: Callable[[], int] | None = None,
+    heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS,
+    sleep: Callable[[float], Any] = asyncio.sleep,
 ) -> tuple[Tick, ...]:
     """Collect ``count`` ticks across as many OTP connections as needed.
 
@@ -154,6 +195,7 @@ async def collect_ticks_resilient(
     collection deadline elapses.
     """
     _validate(symbol, count)
+    _validate_heartbeat(heartbeat_seconds)
 
     connector = connect if connect is not None else _default_connect
     now = clock if clock is not None else lambda: int(time.time())
@@ -171,6 +213,8 @@ async def collect_ticks_resilient(
                     connector=connector,
                     now=now,
                     cache=cache,
+                    heartbeat_seconds=heartbeat_seconds,
+                    sleep=sleep,
                 )
         return cache.ticks
     except TimeoutError:
