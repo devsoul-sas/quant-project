@@ -207,6 +207,23 @@ def _parser() -> argparse.ArgumentParser:
         help="synthetic tick count for --dry-run (default: 7400)",
     )
 
+    accu = commands.add_parser(
+        "accu-verify",
+        help="verify ACCU streak reconstruction from ticks_history and proposals (read-only)",
+    )
+    accu.add_argument("--symbol", default="R_100", help="accumulator symbol (default: R_100)")
+    accu.add_argument("--growth-rate", type=Decimal, default=Decimal("0.05"))
+    accu.add_argument("--stake", type=Decimal, default=Decimal("1.00"))
+    accu.add_argument("--cadence", type=int, default=2, help="tick cadence seconds (R_100: 2)")
+    accu.add_argument("--max-proposals", type=int, default=10)
+    accu.add_argument("--history-count", type=int, default=40000)
+    accu.add_argument("--session-seconds", type=int, default=900)
+    accu.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="run end-to-end with deterministic synthetic ticks (no provider)",
+    )
+
     research = commands.add_parser(
         "research", help="run reproducible provider-independent research"
     )
@@ -258,6 +275,8 @@ def main(argv: Sequence[str] | None = None, *, stdout: TextIO | None = None) -> 
         return _run_paper_session(arguments, destination)
     if arguments.command == "campaign":
         return _run_campaign(arguments, destination)
+    if arguments.command == "accu-verify":
+        return _run_accu_verify(arguments, destination)
     raise AssertionError("argparse accepted an unsupported command")  # pragma: no cover
 
 
@@ -838,6 +857,174 @@ def _synthetic_dry_run_collect(
         return tuple(ticks), 0
 
     return collect
+
+
+def _accu_payload(result: object) -> dict[str, object]:
+    return {
+        "classification": result.classification,  # type: ignore[attr-defined]
+        "decision_reasons": list(result.decision_reasons),  # type: ignore[attr-defined]
+        "symbol": result.symbol,  # type: ignore[attr-defined]
+        "proposals": result.proposals,  # type: ignore[attr-defined]
+        "history_ticks": result.history_ticks,  # type: ignore[attr-defined]
+        "history_pages": result.history_pages,  # type: ignore[attr-defined]
+        "discontinuities": result.discontinuities,  # type: ignore[attr-defined]
+        "ended_early": result.ended_early,  # type: ignore[attr-defined]
+        "barrier_fraction": result.barrier_fraction,  # type: ignore[attr-defined]
+        "observed_summary": result.observed_summary,  # type: ignore[attr-defined]
+        "reconstructed_summary": result.reconstructed_summary,  # type: ignore[attr-defined]
+    }
+
+
+def _synthetic_accu_proposal(
+    symbol: str,
+    growth_rate: Decimal,
+    barrier_fraction: Decimal,
+    ticks_stayed_in: tuple[int, ...],
+) -> object:
+    from devsoul_quant.adapters.deriv.accu_proposal import AccumulatorProposal
+
+    return AccumulatorProposal(
+        proposal_id="synthetic",
+        symbol=symbol,
+        growth_rate=growth_rate,
+        barrier_fraction=barrier_fraction,
+        barrier_percentage=barrier_fraction * Decimal("100"),
+        high_barrier=Decimal("101"),
+        low_barrier=Decimal("99"),
+        barrier_spot_distance=Decimal("1"),
+        spot=Decimal("100"),
+        maximum_ticks=50,
+        maximum_payout=Decimal("6000"),
+        minimum_stake=Decimal("1"),
+        maximum_stake=Decimal("1000"),
+        ticks_stayed_in=ticks_stayed_in,
+    )
+
+
+def _synthetic_accu_ticks(count: int, *, cadence: int, seed: int) -> tuple[Tick, ...]:
+    generator = random.Random(seed)
+    steps = (
+        Decimal("0.06"),
+        Decimal("0.04"),
+        Decimal("0.02"),
+        Decimal("0.00"),
+        Decimal("-0.02"),
+        Decimal("-0.04"),
+        Decimal("-0.06"),
+    )
+    quote = Decimal("100.00")
+    epoch = 1_000_000
+    ticks: list[Tick] = []
+    for _ in range(count):
+        quote += generator.choice(steps)
+        epoch += cadence
+        ticks.append(Tick(epoch, quote, pip_size=2))
+    return tuple(ticks)
+
+
+def _run_accu_verify(arguments: argparse.Namespace, destination: TextIO) -> int:
+    from devsoul_quant.application.accu_verify import verify_accumulator
+
+    if arguments.dry_run:
+        from devsoul_quant.adapters.deriv.history import HistoryResult
+        from devsoul_quant.domain.accumulator import reconstruct_streaks
+
+        barrier = Decimal("0.0005")
+        history_ticks = _synthetic_accu_ticks(
+            min(arguments.history_count, 5000), cadence=arguments.cadence, seed=42
+        )
+        observed_ticks = _synthetic_accu_ticks(20000, cadence=arguments.cadence, seed=7)
+        observed_streaks = tuple(
+            streak.length for streak in reconstruct_streaks(observed_ticks, barrier)
+        )
+
+        def dry_propose(url: str, symbol: str, growth_rate: Decimal, stake: Decimal) -> object:
+            del url, stake
+            return _synthetic_accu_proposal(symbol, growth_rate, barrier, observed_streaks)
+
+        def dry_fetch(
+            resolve_url: object,
+            symbol: str,
+            *,
+            total_count: int,
+            cadence_seconds: int,
+            deadline_remaining: float | None,
+        ) -> HistoryResult:
+            del resolve_url, symbol, total_count, cadence_seconds, deadline_remaining
+            return HistoryResult(ticks=history_ticks, pages=1, discontinuities=0, ended_early=False)
+
+        result = verify_accumulator(
+            symbol=arguments.symbol,
+            growth_rate=arguments.growth_rate,
+            stake=arguments.stake,
+            cadence_seconds=arguments.cadence,
+            max_proposals=arguments.max_proposals,
+            history_total_count=min(arguments.history_count, 5000),
+            deadline_remaining=None,
+            resolve_url=lambda: "",
+            propose=dry_propose,  # type: ignore[arg-type]
+            fetch_history=dry_fetch,
+        )
+    else:
+        token = os.getenv("DEVSOUL_QUANT_DERIV_TOKEN", "")
+        app_id = os.getenv("DEVSOUL_QUANT_DERIV_APP_ID", "")
+        account_id = os.getenv("DEVSOUL_QUANT_DERIV_ACCOUNT") or None
+        if not token or not app_id:
+            destination.write("error: demo credentials are not configured\n")
+            return 2
+        from devsoul_quant.adapters.deriv.accu_proposal import propose_accumulator
+        from devsoul_quant.adapters.deriv.history import fetch_ticks_history
+        from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+        from devsoul_quant.application.session_deadline import SessionDeadline
+
+        def live_resolve() -> str:
+            return resolve_demo_url(
+                UrllibSession(), token=token, app_id=app_id, account_id=account_id
+            )
+
+        deadline = SessionDeadline(
+            session_seconds=arguments.session_seconds, monotonic=time.monotonic
+        )
+
+        def live_propose(url: str, symbol: str, growth_rate: Decimal, stake: Decimal) -> object:
+            return propose_accumulator(url, symbol, growth_rate=growth_rate, stake=stake)
+
+        def live_fetch(
+            resolve_url: object,
+            symbol: str,
+            *,
+            total_count: int,
+            cadence_seconds: int,
+            deadline_remaining: float | None,
+        ) -> object:
+            return fetch_ticks_history(
+                resolve_url,  # type: ignore[arg-type]
+                symbol,
+                total_count=total_count,
+                cadence_seconds=cadence_seconds,
+                deadline_remaining=deadline_remaining,
+            )
+
+        try:
+            result = verify_accumulator(
+                symbol=arguments.symbol,
+                growth_rate=arguments.growth_rate,
+                stake=arguments.stake,
+                cadence_seconds=arguments.cadence,
+                max_proposals=arguments.max_proposals,
+                history_total_count=arguments.history_count,
+                deadline_remaining=deadline.remaining(),
+                resolve_url=live_resolve,
+                propose=live_propose,  # type: ignore[arg-type]
+                fetch_history=live_fetch,  # type: ignore[arg-type]
+            )
+        except Exception:
+            destination.write(
+                "error: accu verification stopped safely; no provider state retained\n"
+            )
+            return 2
+    destination.write(json.dumps({"type": "final", **_accu_payload(result)}, sort_keys=True) + "\n")
+    return 0
 
 
 def _run_research(arguments: argparse.Namespace, destination: TextIO) -> int:
