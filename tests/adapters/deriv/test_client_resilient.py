@@ -8,7 +8,11 @@ from typing import Any
 import pytest
 from websockets.exceptions import ConnectionClosedError
 
-from devsoul_quant.adapters.deriv.client import DerivClientError, collect_ticks_resilient
+from devsoul_quant.adapters.deriv.client import (
+    CollectionTimeout,
+    DerivClientError,
+    collect_ticks_resilient,
+)
 from devsoul_quant.adapters.deriv.demo_url import UnsafeDerivUrl
 
 DEMO_URL = "wss://api.derivws.com/trading/v1/options/ws/demo?otp=abc123"
@@ -52,8 +56,8 @@ class DroppingWebSocket:
         return message
 
 
-def _fake_connect(websockets_by_url: dict[str, DroppingWebSocket]) -> Any:
-    def connect(url: str) -> DroppingWebSocket:
+def _fake_connect(websockets_by_url: dict[str, Any]) -> Any:
+    def connect(url: str) -> Any:
         return websockets_by_url[url]
 
     return connect
@@ -169,3 +173,106 @@ def test_resilient_collection_raises_on_provider_errors_without_reconnecting() -
         )
 
     assert called == 1
+
+
+class SlowWebSocket:
+    """Yields ticks with a real-time delay so a bounded deadline elapses mid-batch."""
+
+    def __init__(self, messages: list[str], delay: float) -> None:
+        self._messages = iter(messages)
+        self._delay = delay
+        self.sent: list[str] = []
+
+    async def __aenter__(self) -> "SlowWebSocket":
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> bool:
+        return False
+
+    async def send(self, data: str) -> None:
+        self.sent.append(data)
+
+    def __aiter__(self) -> "SlowWebSocket":
+        return self
+
+    async def __anext__(self) -> str:
+        try:
+            message = next(self._messages)
+        except StopIteration:
+            raise StopAsyncIteration from None
+        await asyncio.sleep(self._delay)
+        return message
+
+
+class HangingWebSocket:
+    """Never yields a tick, so the collection window elapses without progress."""
+
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+
+    async def __aenter__(self) -> "HangingWebSocket":
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> bool:
+        return False
+
+    async def send(self, data: str) -> None:
+        self.sent.append(data)
+
+    def __aiter__(self) -> "HangingWebSocket":
+        return self
+
+    async def __anext__(self) -> str:
+        await asyncio.sleep(10)
+        return ""  # pragma: no cover - the timeout cancels this coroutine first
+
+
+def test_deadline_driven_timeout_returns_partial_ticks() -> None:
+    ws = SlowWebSocket([_tick(i, str(float(i))) for i in range(1000)], delay=0.01)
+    ticks = asyncio.run(
+        collect_ticks_resilient(
+            _urls(DEMO_URL),
+            "stpRNG",
+            count=1000,
+            connect=_fake_connect({DEMO_URL: ws}),
+            deadline_remaining=0.2,
+        )
+    )
+    assert 0 < len(ticks) < 1000
+
+
+def test_stall_without_deadline_raises_collection_timeout(monkeypatch) -> None:
+    import devsoul_quant.adapters.deriv.client as client_module
+
+    monkeypatch.setattr(client_module, "MAX_COLLECTION_SECONDS", 0.1)
+    ws = HangingWebSocket()
+
+    with pytest.raises(CollectionTimeout):
+        asyncio.run(
+            collect_ticks_resilient(
+                _urls(DEMO_URL),
+                "stpRNG",
+                count=10,
+                connect=_fake_connect({DEMO_URL: ws}),
+                deadline_remaining=None,
+            )
+        )
+
+
+def test_reconnections_are_reported() -> None:
+    first = DroppingWebSocket([_tick(100, "1.0")], drop_after=1)
+    second = DroppingWebSocket([_tick(101, "2.0"), _tick(102, "3.0")])
+    reconnects: list[int] = []
+
+    ticks = asyncio.run(
+        collect_ticks_resilient(
+            _urls(DEMO_URL, DEMO_URL_2),
+            "R_10",
+            count=3,
+            connect=_fake_connect({DEMO_URL: first, DEMO_URL_2: second}),
+            reconnections=reconnects,
+        )
+    )
+
+    assert len(ticks) == 3
+    assert reconnects == [1]

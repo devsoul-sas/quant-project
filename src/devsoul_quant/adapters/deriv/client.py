@@ -38,6 +38,16 @@ class DerivClientError(RuntimeError):
     """Raised when the demo WebSocket flow cannot complete safely."""
 
 
+class CollectionTimeout(DerivClientError):
+    """Raised when a bounded collection window elapses without a deadline expiry.
+
+    A genuine stall (the feed stops producing ticks and reconnection cannot
+    complete within the full per-batch window) is a failure. A deadline-driven
+    end to the final batch is NOT: that is handled by returning the partial
+    ticks already cached so the caller can evaluate them normally.
+    """
+
+
 def _default_connect(url: str) -> Any:
     import websockets
 
@@ -201,6 +211,7 @@ async def collect_ticks_resilient(
     heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS,
     sleep: Callable[[float], Any] = asyncio.sleep,
     deadline_remaining: float | None = None,
+    reconnections: list[int] | None = None,
 ) -> tuple[Tick, ...]:
     """Collect ``count`` ticks across as many OTP connections as needed.
 
@@ -208,6 +219,13 @@ async def collect_ticks_resilient(
     can drop before ``count`` is reached. This reconnects with a fresh OTP URL and
     accumulates strictly newer ticks until ``count`` is reached or the overall
     collection deadline elapses.
+
+    When the deadline (bounded by ``deadline_remaining``) elapses mid-batch, the
+    ticks already cached are returned rather than raising, so the caller can
+    evaluate the valid observations collected before the session bound. A genuine
+    stall — the full per-batch window elapses while the deadline is still open —
+    raises :class:`CollectionTimeout`. The number of reconnections (fresh OTP URLs
+    beyond the first) is appended to ``reconnections`` when provided.
     """
     _validate(symbol, count)
     _validate_heartbeat(heartbeat_seconds)
@@ -216,11 +234,13 @@ async def collect_ticks_resilient(
     now = clock if clock is not None else lambda: int(time.time())
     cache = EphemeralTickCache()
     collected = 0
+    reconnects = 0
     try:
         async with asyncio.timeout(_collection_timeout(deadline_remaining)):
             while collected < count:
                 url = resolve_url()
                 validate_demo_websocket_url(url)
+                reconnects += 1
                 collected += await _collect_once(
                     url,
                     symbol,
@@ -231,8 +251,17 @@ async def collect_ticks_resilient(
                     heartbeat_seconds=heartbeat_seconds,
                     sleep=sleep,
                 )
-        return cache.ticks
     except TimeoutError:
-        raise DerivClientError("demo websocket collection timed out") from None
+        if deadline_remaining is not None and deadline_remaining < MAX_COLLECTION_SECONDS:
+            # The session deadline elapsed mid-batch: a normal, bounded end.
+            pass
+        else:
+            raise CollectionTimeout(
+                "demo websocket collection timed out before the deadline"
+            ) from None
     finally:
+        if reconnections is not None:
+            reconnections.append(max(0, reconnects - 1))
+        ticks = cache.ticks
         cache.clear()
+    return ticks

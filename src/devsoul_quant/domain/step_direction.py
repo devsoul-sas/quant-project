@@ -84,6 +84,22 @@ class StepDirectionModelMetrics:
 
 
 @dataclass(frozen=True, slots=True)
+class OperationalDiagnostic:
+    """Sanitized, ephemeral operational diagnosis for one campaign run.
+
+    Carries only lifecycle facts — never tokens, OTP URLs, payloads or
+    restricted market data — so it can travel alongside the result without
+    leaking provider credentials or feed content.
+    """
+
+    phase: str  # "collecting" | "finalizing"
+    stop_reason: str  # one of the six differentiated stop reasons below
+    completed_batches: int
+    reconnections: int
+    deadline_reached: bool
+
+
+@dataclass(frozen=True, slots=True)
 class StepDirectionResult:
     """Ephemeral H1 result. Quantitative fields live only in this object."""
 
@@ -113,6 +129,7 @@ class StepDirectionResult:
     holm_significant_lag1: bool
     economic_eligibility: str
     contractual_correspondence: str
+    operational_diagnostic: OperationalDiagnostic | None
 
     def for_model(self, model: str) -> StepDirectionModelMetrics:
         for metrics in self.models:
@@ -565,6 +582,59 @@ class StepDirectionPrequentialEvaluator:
             holm_significant_lag1=holm_lag1,
             economic_eligibility="UNAVAILABLE",
             contractual_correspondence="RISE_FALL_TICK_EXIT_VS_ENTRY_SHADOW_ONLY",
+            operational_diagnostic=None,
+        )
+
+    def blocked_result(
+        self,
+        classification: str,
+        reasons: tuple[str, ...],
+        *,
+        diagnostic: OperationalDiagnostic,
+    ) -> StepDirectionResult:
+        """Fail-closed result with the real counters observed so far.
+
+        Unlike a synthetic zeroed result, this reports the actual ``ticks_received``,
+        ``warmup_transitions``, ``valid_transitions``, ``flat_transitions``,
+        ``discontinuous_transitions`` and ``nominal_cadence`` accumulated before the
+        failure. Statistical and predictive fields that cannot be computed on partial
+        state are reported as ``None`` (never fabricated).
+        """
+        valid = len(self._labels)
+        empty_models = tuple(
+            StepDirectionModelMetrics(
+                model=name, observations=0, brier_score=None, log_loss=None, accuracy=None
+            )
+            for name in ("MEMORYLESS", "FREQUENCY_CAUSAL", "MARKOV_1", "MARKOV_1_ADAPTIVE")
+        )
+        return StepDirectionResult(
+            classification=classification,
+            decision_reasons=reasons,
+            ticks_received=self._ticks_received,
+            warmup_transitions=self._warmup_count,
+            valid_transitions=valid,
+            flat_transitions=self._flat,
+            discontinuous_transitions=self._discontinuous,
+            nominal_cadence=self._frozen_cadence,
+            effective_sample_size=None,
+            warmup_p_up=self._warmup_p_up,
+            causal_p_up=None,
+            transition_matrix=self._transition,
+            lag1_chi_square=None,
+            models=empty_models,
+            improvement_memoryless_adaptive=None,
+            improvement_memoryless_markov=None,
+            improvement_causal_adaptive=None,
+            first_half_improvement=None,
+            second_half_improvement=None,
+            bootstrap_lower_bound=None,
+            p_marginal=None,
+            p_lag1=None,
+            holm_significant_marginal=False,
+            holm_significant_lag1=False,
+            economic_eligibility="UNAVAILABLE",
+            contractual_correspondence="RISE_FALL_TICK_EXIT_VS_ENTRY_SHADOW_ONLY",
+            operational_diagnostic=diagnostic,
         )
 
 

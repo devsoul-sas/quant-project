@@ -715,6 +715,7 @@ def _campaign_payload(result: object) -> dict[str, object]:
         "holm_significant_lag1": result.holm_significant_lag1,  # type: ignore[attr-defined]
         "economic_eligibility": result.economic_eligibility,  # type: ignore[attr-defined]
         "contractual_correspondence": result.contractual_correspondence,  # type: ignore[attr-defined]
+        "operational_diagnostic": _diagnostic_payload(result.operational_diagnostic),  # type: ignore[attr-defined]
         "models": [
             {
                 "model": model.model,
@@ -731,6 +732,18 @@ def _campaign_payload(result: object) -> dict[str, object]:
 
 def _dec(value: object) -> str | None:
     return None if value is None else str(value)
+
+
+def _diagnostic_payload(diagnostic: object) -> dict[str, object] | None:
+    if diagnostic is None:
+        return None
+    return {
+        "phase": diagnostic.phase,  # type: ignore[attr-defined]
+        "stop_reason": diagnostic.stop_reason,  # type: ignore[attr-defined]
+        "completed_batches": diagnostic.completed_batches,  # type: ignore[attr-defined]
+        "reconnections": diagnostic.reconnections,  # type: ignore[attr-defined]
+        "deadline_reached": diagnostic.deadline_reached,  # type: ignore[attr-defined]
+    }
 
 
 def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
@@ -757,6 +770,7 @@ def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
             destination.write(f"error: {name} hash mismatch; spec is not frozen\n")
             return 2
 
+    collect: Callable[[int, float], tuple[Sequence[Tick], int]]
     if arguments.dry_run:
         collect = _synthetic_dry_run_collect(arguments.dry_run_ticks, cadence=2, seed=spec.seed)
     else:
@@ -774,16 +788,21 @@ def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
                 UrllibSession(), token=token, app_id=app_id, account_id=account_id
             )
 
-        def collect(count: int, remaining: float) -> tuple[Tick, ...]:
-            return asyncio.run(
+        def live_collect(count: int, remaining: float) -> tuple[tuple[Tick, ...], int]:
+            reconnects: list[int] = []
+            ticks = asyncio.run(
                 collect_ticks_resilient(
                     resolve_url,
                     spec.instrument,
                     count=count,
                     heartbeat_seconds=10,
                     deadline_remaining=remaining,
+                    reconnections=reconnects,
                 )
             )
+            return ticks, (reconnects[0] if reconnects else 0)
+
+        collect = live_collect
 
     try:
         result = run_h1_campaign(spec=spec, collect_ticks=collect)
@@ -798,16 +817,16 @@ def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
 
 def _synthetic_dry_run_collect(
     total_ticks: int, *, cadence: int, seed: int
-) -> Callable[[int, float], tuple[Tick, ...]]:
+) -> Callable[[int, float], tuple[tuple[Tick, ...], int]]:
     """Deterministic synthetic step feed for the end-to-end dry-run."""
     generator = random.Random(seed)
     epoch = 1
     quote = Decimal("100.00")
 
-    def collect(count: int, remaining: float) -> tuple[Tick, ...]:
+    def collect(count: int, remaining: float) -> tuple[tuple[Tick, ...], int]:
         nonlocal total_ticks, epoch, quote
         if total_ticks <= 0:
-            return ()
+            return (), 0
         take = min(count, total_ticks)
         total_ticks -= take
         ticks: list[Tick] = []
@@ -816,7 +835,7 @@ def _synthetic_dry_run_collect(
             quote += Decimal("0.10") if direction else -Decimal("0.10")
             epoch += cadence
             ticks.append(Tick(epoch, quote, pip_size=1))
-        return tuple(ticks)
+        return tuple(ticks), 0
 
     return collect
 
