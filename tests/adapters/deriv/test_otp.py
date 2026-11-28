@@ -11,6 +11,7 @@ from devsoul_quant.adapters.deriv.demo_url import UnsafeDerivUrl
 from devsoul_quant.adapters.deriv.otp import (
     ACCOUNTS_PATH,
     API_BASE_URL,
+    DemoUrlResolver,
     DerivOtpError,
     UrllibResponse,
     UrllibSession,
@@ -159,6 +160,19 @@ def test_resolve_demo_url_skips_listing_with_an_explicit_account() -> None:
     assert url == DEMO_URL
     assert session.calls[0][0] == "POST"
     assert session.calls[0][1].endswith("/DOT9/otp")
+
+
+def test_demo_url_resolver_resolves_account_once_per_session() -> None:
+    session = FakeSession()
+    session.get_response = FakeResponse(
+        payload={"data": [{"account_id": "DOT_DEMO", "account_type": "demo"}]}
+    )
+    resolver = DemoUrlResolver(session, token=TOKEN, app_id=APP_ID)
+
+    assert resolver() == DEMO_URL
+    assert resolver() == DEMO_URL
+
+    assert [call[0] for call in session.calls] == ["GET", "POST", "POST"]
 
 
 @pytest.mark.parametrize(("token", "app_id"), [("   ", APP_ID), (TOKEN, "")])

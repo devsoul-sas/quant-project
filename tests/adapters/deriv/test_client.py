@@ -103,7 +103,7 @@ def test_collect_ticks_wraps_connection_failures() -> None:
     def failing_connect(url: str) -> FakeWebSocket:
         raise OSError("network down")
 
-    with pytest.raises(DerivClientError, match="network down"):
+    with pytest.raises(DerivClientError, match="demo websocket failed"):
         asyncio.run(collect_ticks(DEMO_URL, "R_100", count=1, connect=failing_connect))
 
 

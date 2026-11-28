@@ -86,6 +86,46 @@ class UrllibSession:
             return UrllibResponse(error.read(), error.code)
 
 
+class DemoUrlResolver:
+    """Resolve fresh OTP URLs while listing the demo account only once.
+
+    One instance is scoped to one bounded research session. OTP URLs remain
+    one-time values; only the non-secret account identity is cached in memory.
+    """
+
+    def __init__(
+        self,
+        session: OtpSession,
+        *,
+        token: str,
+        app_id: str,
+        account_id: str | None = None,
+    ) -> None:
+        if not isinstance(token, str) or not token.strip():
+            raise DerivOtpError("token must be a non-blank string")
+        if not isinstance(app_id, str) or not app_id.strip():
+            raise DerivOtpError("app_id must be a non-blank string")
+        self._session = session
+        self._token = token
+        self._app_id = app_id
+        self._account_id = account_id
+
+    def __call__(self) -> str:
+        if self._account_id is None:
+            accounts = list_accounts(self._session, token=self._token, app_id=self._app_id)
+            demo = [item for item in accounts if item.get("account_type") == "demo"]
+            selected = demo[0].get("account_id") if demo else None
+            if not isinstance(selected, str) or not selected.strip():
+                raise DerivOtpError("no demo Options account found")
+            self._account_id = selected
+        return request_otp(
+            self._session,
+            token=self._token,
+            app_id=self._app_id,
+            account_id=self._account_id,
+        )
+
+
 def _auth_headers(token: str, app_id: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", "Deriv-App-ID": app_id}
 

@@ -5,7 +5,11 @@ from typing import Any
 
 from devsoul_quant.adapters.deriv.accu_proposal import AccumulatorProposal
 from devsoul_quant.adapters.deriv.history import HistoryResult
-from devsoul_quant.application.accu_verify import _classify, verify_accumulator
+from devsoul_quant.application.accu_verify import (
+    _classify,
+    completed_fifo_snapshot,
+    verify_accumulator,
+)
 from devsoul_quant.domain.accumulator import reconstruct_streaks
 from devsoul_quant.domain.replay import Tick
 
@@ -47,10 +51,18 @@ def _streak_ticks() -> tuple[Tick, ...]:
     return tuple(Tick(1000 + i * 2, Decimal(quote), pip_size=2) for i, quote in enumerate(quotes))
 
 
-def test_classify_identical_distributions_is_verified() -> None:
+def test_classify_identical_distributions_is_only_partial() -> None:
     classification, reasons = _classify((1, 1, 2, 2, 3), (1, 1, 2, 2, 3))
-    assert classification == "ACCU_RECONSTRUCTION_VERIFIED_FOR_OBSERVED_WINDOWS"
-    assert reasons == ("STREAK_DISTRIBUTION_MATCHES",)
+    assert classification == "ACCU_RECONSTRUCTION_PARTIAL"
+    assert reasons == ("DISTRIBUTIONAL_SIMILARITY_ONLY",)
+
+
+def test_completed_fifo_snapshot_excludes_the_live_censored_streak() -> None:
+    assert completed_fifo_snapshot((4, 7, 11)) == (4, 7)
+
+
+def test_completed_fifo_snapshot_requires_a_live_tail() -> None:
+    assert completed_fifo_snapshot(()) == ()
 
 
 def test_classify_disjoint_distributions_is_proxy() -> None:
@@ -109,9 +121,34 @@ def test_verify_end_to_end_matching_streaks() -> None:
         propose=propose,
         fetch_history=fetch_history,
     )
-    assert result.classification == "ACCU_RECONSTRUCTION_VERIFIED_FOR_OBSERVED_WINDOWS"
+    assert result.classification == "ACCU_RECONSTRUCTION_PARTIAL"
     assert result.proposals == 1
     assert result.history_ticks == len(ticks)
+
+
+def test_verify_does_not_pseudoreplicate_overlapping_fifo_snapshots() -> None:
+    ticks = _streak_ticks()
+    snapshots = iter(((1, 2, 3, 4), (2, 3, 4, 5)))
+
+    def propose(url: str, symbol: str, growth_rate: Decimal, stake: Decimal) -> AccumulatorProposal:
+        del url, growth_rate, stake
+        return _proposal(symbol, _BARRIER, next(snapshots))
+
+    result = verify_accumulator(
+        symbol="R_100",
+        growth_rate=Decimal("0.05"),
+        stake=Decimal("1"),
+        cadence_seconds=2,
+        max_proposals=2,
+        history_total_count=10,
+        deadline_remaining=None,
+        resolve_url=lambda: "",
+        propose=propose,
+        fetch_history=lambda *a, **k: HistoryResult(ticks, 1, 0, False),
+    )
+
+    assert result.observed_summary["count"] == 3
+    assert result.observed_summary["max"] == 4
 
 
 def test_verify_mismatched_streaks_is_proxy() -> None:

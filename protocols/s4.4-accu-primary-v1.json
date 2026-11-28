@@ -1,0 +1,98 @@
+{
+  "version": "S4.4-ACCU-PRIMARY-V1",
+  "hypothesis": "NEW_R75_NORMALIZED_SURVIVAL_PROXY",
+  "symbols": ["R_75"],
+  "supported_symbols": ["R_100", "R_75", "R_50", "R_25"],
+  "growth_rates": ["0.01", "0.03", "0.05"],
+  "supported_growth_rate_min": "0.01",
+  "supported_growth_rate_max": "0.05",
+  "horizons": [3],
+  "supported_horizons": [1, 2, 3, 4, 5],
+  "primary_horizon": 3,
+  "maximum_ticks": 40000,
+  "maximum_duration_seconds": 1800,
+  "cadence_seconds": 2,
+  "feature_windows": {
+    "volatility": 20,
+    "range": 50
+  },
+  "features": [
+    "streak_age",
+    "previous_streak",
+    "recent_mean_absolute_move_over_barrier",
+    "range_width_over_barrier",
+    "range_position",
+    "current_move_over_barrier"
+  ],
+  "rules": [
+    {
+      "rule_id": "EARLY_STABLE_MIDRANGE_V1",
+      "minimum_streak_age": 0,
+      "maximum_streak_age": 5,
+      "minimum_previous_streak": 10,
+      "maximum_recent_volatility": "0.60",
+      "maximum_range_width": "12",
+      "minimum_range_position": "0.20",
+      "maximum_range_position": "0.80",
+      "maximum_current_move": "0.80"
+    },
+    {
+      "rule_id": "MID_STREAK_STABLE_V1",
+      "minimum_streak_age": 6,
+      "maximum_streak_age": 15,
+      "minimum_previous_streak": 5,
+      "maximum_recent_volatility": "0.70",
+      "maximum_range_width": "15",
+      "minimum_range_position": "0.15",
+      "maximum_range_position": "0.85",
+      "maximum_current_move": "0.85"
+    },
+    {
+      "rule_id": "LOW_VOL_INTERIOR_V1",
+      "minimum_streak_age": 0,
+      "maximum_streak_age": 25,
+      "minimum_previous_streak": 0,
+      "maximum_recent_volatility": "0.50",
+      "maximum_range_width": "10",
+      "minimum_range_position": "0.25",
+      "maximum_range_position": "0.75",
+      "maximum_current_move": "0.70"
+    }
+  ],
+  "entry_combination": "ALL_RULE_CONDITIONS_REQUIRED",
+  "abstention_rules": [
+    "WARMUP_INCOMPLETE",
+    "DISCONTINUITY_WITHIN_LOOKBACK",
+    "ANY_RULE_CONDITION_FALSE",
+    "NONFINITE_OR_NONPOSITIVE_INPUT",
+    "MISSING_BARRIER"
+  ],
+  "normalization": "DIMENSIONLESS_BY_CURRENT_GROWTH_RATE_BARRIER",
+  "selection_method": "NO_SELECTION_ALL_PRIMARY_RULES_FIXED_BEFORE_DATA",
+  "baseline": "UNCONDITIONAL_SURVIVAL_SAME_SPLIT",
+  "split": {
+    "train_fraction": "0.60",
+    "validation_fraction": "0.20",
+    "holdout_fraction": "0.20",
+    "purge_ticks": 53
+  },
+  "statistics": {
+    "bootstrap": "MOVING_BLOCK_PERCENTILE",
+    "resamples": 2000,
+    "seed": 20261127,
+    "block_length": 50,
+    "family_alpha": "0.05",
+    "multiplicity": "BONFERRONI",
+    "minimum_rule_entries": 600,
+    "minimum_absolute_lift": "0.02"
+  },
+  "economic_proxy": "IDEALIZED_FULL_LOSS_OR_COMPOUNDED_GROWTH_NO_EARLY_EXIT_NO_COSTS",
+  "terminal_classifications": ["ACCU_PROXY_ONLY", "INSUFFICIENT_EVIDENCE", "NO_EDGE"],
+  "fidelity_cap": "ACCU_RECONSTRUCTION_PARTIAL",
+  "data_policy": "EPHEMERAL_ONLY",
+  "maximum_contracts": 0,
+  "buy_calls": 0,
+  "sell_calls": 0,
+  "persist_provider_data": false,
+  "persist_derived_results": false
+}

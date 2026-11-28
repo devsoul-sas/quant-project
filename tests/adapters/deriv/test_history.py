@@ -22,6 +22,7 @@ class FakeSocket:
     def __init__(self, messages: list[dict[str, Any]]) -> None:
         self.messages = iter(messages)
         self.sent: list[dict[str, Any]] = []
+        self.recv_timeouts: list[float | None] = []
 
     def __enter__(self) -> "FakeSocket":
         return self
@@ -33,6 +34,7 @@ class FakeSocket:
         self.sent.append(json.loads(payload))
 
     def recv(self, timeout: float | None = None) -> str:
+        self.recv_timeouts.append(timeout)
         return json.dumps(next(self.messages))
 
 
@@ -241,3 +243,44 @@ def test_fetch_ticks_history_rejects_invalid_cadence() -> None:
         fetch_ticks_history(
             lambda: DEMO_URL, "R_100", total_count=10, cadence_seconds=0, connect=Connections()
         )
+
+
+def test_fetch_ticks_history_stops_when_a_page_adds_no_new_epochs() -> None:
+    repeated = _history([1.0, 1.1], [100, 102])
+    result = fetch_ticks_history(
+        lambda: DEMO_URL,
+        "R_100",
+        total_count=4,
+        cadence_seconds=2,
+        connect=Connections(FakeSocket([repeated]), FakeSocket([repeated])),
+    )
+
+    assert result.pages == 2
+    assert result.ended_early is True
+    assert [tick.epoch for tick in result.ticks] == [100, 102]
+
+
+def test_fetch_ticks_history_caps_each_request_by_session_deadline() -> None:
+    page = FakeSocket([_history([1.0], [100])])
+    fetch_ticks_history(
+        lambda: DEMO_URL,
+        "R_100",
+        total_count=1,
+        deadline_remaining=5,
+        request_timeout_seconds=30,
+        connect=Connections(page),
+        monotonic=lambda: 0.0,
+    )
+    assert page.recv_timeouts == [5.0]
+
+
+def test_request_ticks_history_sanitizes_connection_errors() -> None:
+    class RaisingConnections:
+        def __call__(self, url: str) -> FakeSocket:
+            raise RuntimeError(f"failed for {url}")
+
+    with pytest.raises(HistoryError) as captured:
+        request_ticks_history(DEMO_URL, "R_100", count=1, connect=RaisingConnections())
+
+    assert "secret-otp" not in str(captured.value)
+    assert str(captured.value) == "demo websocket failed"

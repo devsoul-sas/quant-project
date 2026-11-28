@@ -140,8 +140,10 @@ def request_ticks_history(
                 return HistoryPage(ticks=tuple(ticks), pip_size=pip_size)
     except HistoryError:
         raise
-    except Exception as error:
-        raise HistoryError(f"demo websocket failed: {error}") from error
+    except Exception:
+        # Transport errors may include the authenticated OTP URL. Never surface
+        # provider exception text or preserve it as a chained traceback.
+        raise HistoryError("demo websocket failed") from None
 
 
 def fetch_ticks_history(
@@ -171,23 +173,31 @@ def fetch_ticks_history(
     end: str | int = "latest"
     ended_early = False
     while len(by_epoch) < total_count:
-        if deadline is not None and monotonic() >= deadline:
-            ended_early = True
-            break
+        request_timeout = request_timeout_seconds
+        if deadline is not None:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                ended_early = True
+                break
+            request_timeout = min(request_timeout_seconds, remaining)
         page = request_ticks_history(
             resolve_url(),
             symbol,
             count=min(total_count - len(by_epoch), MAX_PAGE_COUNT),
             end=end,
             connect=connect,
-            request_timeout_seconds=request_timeout_seconds,
+            request_timeout_seconds=request_timeout,
             monotonic=monotonic,
         )
         pages += 1
         if not page.ticks:
             break
+        previous_count = len(by_epoch)
         for tick in page.ticks:
             by_epoch.setdefault(tick.epoch, tick)
+        if len(by_epoch) == previous_count:
+            ended_early = True
+            break
         oldest = min(tick.epoch for tick in page.ticks)
         if oldest <= 0:
             break

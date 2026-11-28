@@ -3,6 +3,7 @@
 import json
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -106,3 +107,25 @@ def test_campaign_v2_spec_dry_runs() -> None:
     assert code == 0
     assert '"classification"' in rendered
     assert '"improvement_causal_adaptive"' in rendered
+
+
+def test_campaign_live_technical_block_is_sanitized_and_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec_path = _write_spec(tmp_path, _spec_json())
+    monkeypatch.setenv("DEVSOUL_QUANT_DERIV_TOKEN", "synthetic-token")
+    monkeypatch.setenv("DEVSOUL_QUANT_DERIV_APP_ID", "synthetic-app")
+    monkeypatch.setattr(
+        "devsoul_quant.application.h1_campaign.run_h1_campaign",
+        lambda **kwargs: SimpleNamespace(classification="H1_TECHNICAL_BLOCKED"),
+    )
+    output = StringIO()
+
+    code = main(["campaign", "--spec", str(spec_path)], stdout=output)
+
+    assert code == 2
+    assert json.loads(output.getvalue()) == {
+        "classification": "H1_TECHNICAL_BLOCKED",
+        "provider_values_persisted": False,
+        "type": "final",
+    }

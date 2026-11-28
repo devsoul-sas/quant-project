@@ -307,7 +307,7 @@ def _run_demo_execute(arguments: argparse.Namespace, destination: TextIO) -> int
 
     from devsoul_quant.adapters.deriv.client import collect_ticks
     from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
-    from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+    from devsoul_quant.adapters.deriv.otp import DemoUrlResolver, UrllibSession
 
     limits = DemoExecutionLimits(
         fixed_stake=arguments.stake,
@@ -317,8 +317,9 @@ def _run_demo_execute(arguments: argparse.Namespace, destination: TextIO) -> int
         kill_switch_enabled=False,
     )
 
-    def resolve_url() -> str:
-        return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
+    resolve_url = DemoUrlResolver(
+        UrllibSession(), token=token, app_id=app_id, account_id=account_id
+    )
 
     def collect(url: str, symbol: str, count: int) -> object:
         return asyncio.run(collect_ticks(url, symbol, count=count))
@@ -523,13 +524,14 @@ def _run_autonomous_demo(arguments: argparse.Namespace, destination: TextIO) -> 
 
     from devsoul_quant.adapters.deriv.client import collect_ticks
     from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
-    from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+    from devsoul_quant.adapters.deriv.otp import DemoUrlResolver, UrllibSession
     from devsoul_quant.application.session_deadline import SessionDeadline
 
     session_deadline: SessionDeadline | None = None
 
-    def resolve_url() -> str:
-        return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
+    resolve_url = DemoUrlResolver(
+        UrllibSession(), token=token, app_id=app_id, account_id=account_id
+    )
 
     def collect(symbol: str, count: int) -> object:
         return asyncio.run(
@@ -632,10 +634,11 @@ def _run_paper_session(arguments: argparse.Namespace, destination: TextIO) -> in
 
     from devsoul_quant.adapters.deriv.client import collect_ticks_resilient
     from devsoul_quant.adapters.deriv.demo_execution import DerivDemoExecutionGateway
-    from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+    from devsoul_quant.adapters.deriv.otp import DemoUrlResolver, UrllibSession
 
-    def resolve_url() -> str:
-        return resolve_demo_url(UrllibSession(), token=token, app_id=app_id, account_id=account_id)
+    resolve_url = DemoUrlResolver(
+        UrllibSession(), token=token, app_id=app_id, account_id=account_id
+    )
 
     def collect(url: str, symbol: str, count: int) -> object:
         return asyncio.run(collect_ticks_resilient(resolve_url, symbol, count=count))
@@ -765,6 +768,14 @@ def _diagnostic_payload(diagnostic: object) -> dict[str, object] | None:
     }
 
 
+def _ephemeral_live_payload(result: object) -> dict[str, object]:
+    """Return the only provider-safe evidence allowed for a live ephemeral run."""
+    return {
+        "classification": result.classification,  # type: ignore[attr-defined]
+        "provider_values_persisted": False,
+    }
+
+
 def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
     from devsoul_quant.application.campaign_spec import InvalidCampaignSpec, load_campaign_spec
     from devsoul_quant.application.h1_campaign import run_h1_campaign
@@ -800,12 +811,11 @@ def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
             destination.write("error: demo credentials are not configured\n")
             return 2
         from devsoul_quant.adapters.deriv.client import collect_ticks_resilient
-        from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+        from devsoul_quant.adapters.deriv.otp import DemoUrlResolver, UrllibSession
 
-        def resolve_url() -> str:
-            return resolve_demo_url(
-                UrllibSession(), token=token, app_id=app_id, account_id=account_id
-            )
+        resolve_url = DemoUrlResolver(
+            UrllibSession(), token=token, app_id=app_id, account_id=account_id
+        )
 
         def live_collect(count: int, remaining: float) -> tuple[tuple[Tick, ...], int]:
             reconnects: list[int] = []
@@ -828,10 +838,9 @@ def _run_campaign(arguments: argparse.Namespace, destination: TextIO) -> int:
     except Exception:
         destination.write("error: campaign stopped safely; no provider state retained\n")
         return 2
-    destination.write(
-        json.dumps({"type": "final", **_campaign_payload(result)}, sort_keys=True) + "\n"
-    )
-    return 0
+    payload = _campaign_payload(result) if arguments.dry_run else _ephemeral_live_payload(result)
+    destination.write(json.dumps({"type": "final", **payload}, sort_keys=True) + "\n")
+    return 2 if result.classification == "H1_TECHNICAL_BLOCKED" else 0
 
 
 def _synthetic_dry_run_collect(
@@ -974,13 +983,12 @@ def _run_accu_verify(arguments: argparse.Namespace, destination: TextIO) -> int:
             return 2
         from devsoul_quant.adapters.deriv.accu_proposal import propose_accumulator
         from devsoul_quant.adapters.deriv.history import fetch_ticks_history
-        from devsoul_quant.adapters.deriv.otp import UrllibSession, resolve_demo_url
+        from devsoul_quant.adapters.deriv.otp import DemoUrlResolver, UrllibSession
         from devsoul_quant.application.session_deadline import SessionDeadline
 
-        def live_resolve() -> str:
-            return resolve_demo_url(
-                UrllibSession(), token=token, app_id=app_id, account_id=account_id
-            )
+        live_resolve = DemoUrlResolver(
+            UrllibSession(), token=token, app_id=app_id, account_id=account_id
+        )
 
         deadline = SessionDeadline(
             session_seconds=arguments.session_seconds, monotonic=time.monotonic
@@ -1023,8 +1031,9 @@ def _run_accu_verify(arguments: argparse.Namespace, destination: TextIO) -> int:
                 "error: accu verification stopped safely; no provider state retained\n"
             )
             return 2
-    destination.write(json.dumps({"type": "final", **_accu_payload(result)}, sort_keys=True) + "\n")
-    return 0
+    payload = _accu_payload(result) if arguments.dry_run else _ephemeral_live_payload(result)
+    destination.write(json.dumps({"type": "final", **payload}, sort_keys=True) + "\n")
+    return 2 if result.classification == "ACCU_TECHNICAL_BLOCKED" else 0
 
 
 def _run_research(arguments: argparse.Namespace, destination: TextIO) -> int:

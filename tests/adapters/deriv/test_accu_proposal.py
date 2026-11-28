@@ -49,21 +49,22 @@ class Connections:
 
 
 def _proposal_message() -> dict[str, Any]:
+    """Return deliberately invented values that exercise the provider schema."""
     return {
         "proposal": {
-            "id": "p-1",
-            "spot": 398.31,
+            "id": "synthetic-proposal",
+            "spot": 100.0,
             "contract_details": {
-                "barrier_spot_distance": "0.193",
-                "high_barrier": "398.503",
-                "low_barrier": "398.117",
-                "tick_size_barrier": 0.000483474879,
-                "tick_size_barrier_percentage": "0.04835%",
-                "maximum_ticks": 50,
-                "maximum_payout": 6000,
-                "minimum_stake": "1.00",
-                "maximum_stake": "1000.00",
-                "ticks_stayed_in": [0, 6, 43, 30, 1],
+                "barrier_spot_distance": "0.5",
+                "high_barrier": "100.5",
+                "low_barrier": "99.5",
+                "tick_size_barrier": 0.005,
+                "tick_size_barrier_percentage": "0.5%",
+                "maximum_ticks": 37,
+                "maximum_payout": 1234.5,
+                "minimum_stake": "0.75",
+                "maximum_stake": "500.00",
+                "ticks_stayed_in": [2, 1, 4],
             },
         },
         "req_id": 1,
@@ -81,20 +82,20 @@ def test_propose_accumulator_parses_contract_fields() -> None:
     )
 
     assert proposal == AccumulatorProposal(
-        proposal_id="p-1",
+        proposal_id="synthetic-proposal",
         symbol="R_100",
         growth_rate=Decimal("0.05"),
-        barrier_fraction=Decimal("0.000483474879"),
-        barrier_percentage=Decimal("0.04835"),
-        high_barrier=Decimal("398.503"),
-        low_barrier=Decimal("398.117"),
-        barrier_spot_distance=Decimal("0.193"),
-        spot=Decimal("398.31"),
-        maximum_ticks=50,
-        maximum_payout=Decimal("6000"),
-        minimum_stake=Decimal("1.00"),
-        maximum_stake=Decimal("1000.00"),
-        ticks_stayed_in=(0, 6, 43, 30, 1),
+        barrier_fraction=Decimal("0.005"),
+        barrier_percentage=Decimal("0.5"),
+        high_barrier=Decimal("100.5"),
+        low_barrier=Decimal("99.5"),
+        barrier_spot_distance=Decimal("0.5"),
+        spot=Decimal("100.0"),
+        maximum_ticks=37,
+        maximum_payout=Decimal("1234.5"),
+        minimum_stake=Decimal("0.75"),
+        maximum_stake=Decimal("500.00"),
+        ticks_stayed_in=(2, 1, 4),
     )
     sent = socket.sent[0]
     assert sent["contract_type"] == "ACCU"
@@ -218,7 +219,7 @@ def test_propose_accumulator_skips_non_proposal_messages() -> None:
         stake=Decimal("1"),
         connect=Connections(socket),
     )
-    assert proposal.proposal_id == "p-1"
+    assert proposal.proposal_id == "synthetic-proposal"
 
 
 def test_propose_accumulator_deadline_expiry() -> None:
@@ -276,3 +277,21 @@ def test_helper_json_number_rejects_invalid() -> None:
     with pytest.raises(ProposalError):
         _json_number(Decimal("1e400"), "field")
     assert _json_number(Decimal("0.05"), "field") == 0.05
+
+
+def test_propose_accumulator_sanitizes_transport_exception() -> None:
+    secret = "wss://api.derivws.com/trading/v1/options/ws/demo?otp=secret"
+
+    def fail_connect(url: str) -> object:
+        del url
+        raise RuntimeError(secret)
+
+    with pytest.raises(ProposalError) as captured:
+        propose_accumulator(
+            DEMO_URL,
+            "R_75",
+            growth_rate=Decimal("0.05"),
+            stake=Decimal("1"),
+            connect=fail_connect,
+        )
+    assert secret not in str(captured.value)

@@ -21,6 +21,7 @@ class FakeSocket:
     def __init__(self, messages: list[dict[str, Any]]) -> None:
         self.messages = iter(messages)
         self.sent: list[dict[str, Any]] = []
+        self.recv_timeouts: list[float | None] = []
 
     def __enter__(self) -> "FakeSocket":
         return self
@@ -32,6 +33,7 @@ class FakeSocket:
         self.sent.append(json.loads(payload))
 
     def recv(self, timeout: float | None = None) -> str:
+        self.recv_timeouts.append(timeout)
         return json.dumps(next(self.messages))
 
 
@@ -271,3 +273,58 @@ def test_fetch_candles_stops_on_non_positive_epoch() -> None:
 
     assert result.pages == 1
     assert [c.epoch for c in result.candles] == [0]
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        _candle(1000, 0.8, 1.5, 0.9, 1.2),
+        _candle(1000, 1.0, 1.5, 0.9, 1.6),
+    ],
+)
+def test_request_candles_rejects_open_or_close_outside_range(item: dict[str, Any]) -> None:
+    socket = FakeSocket([_candles(item)])
+    with pytest.raises(CandlesError):
+        request_candles(DEMO_URL, "frxEURUSD", granularity=60, count=1, connect=Connections(socket))
+
+
+def test_fetch_candles_stops_when_a_page_adds_no_new_epochs() -> None:
+    repeated = _candles(_candle(120, 1.0, 1.1, 0.9, 1.0))
+    result = fetch_candles(
+        lambda: DEMO_URL,
+        "frxEURUSD",
+        granularity=60,
+        total_count=2,
+        connect=Connections(FakeSocket([repeated]), FakeSocket([repeated])),
+    )
+    assert result.pages == 2
+    assert result.ended_early is True
+    assert len(result.candles) == 1
+
+
+def test_fetch_candles_caps_each_request_by_session_deadline() -> None:
+    page = FakeSocket([_candles(_candle(120, 1.0, 1.1, 0.9, 1.0))])
+    fetch_candles(
+        lambda: DEMO_URL,
+        "frxEURUSD",
+        granularity=60,
+        total_count=1,
+        deadline_remaining=5,
+        request_timeout_seconds=30,
+        connect=Connections(page),
+        monotonic=lambda: 0.0,
+    )
+    assert page.recv_timeouts == [5.0]
+
+
+def test_request_candles_sanitizes_connection_errors() -> None:
+    class SensitiveConnections:
+        def __call__(self, url: str) -> FakeSocket:
+            raise RuntimeError(f"failed for {url}")
+
+    with pytest.raises(CandlesError) as captured:
+        request_candles(
+            DEMO_URL, "frxEURUSD", granularity=60, count=1, connect=SensitiveConnections()
+        )
+    assert "secret-otp" not in str(captured.value)
+    assert str(captured.value) == "demo websocket failed"

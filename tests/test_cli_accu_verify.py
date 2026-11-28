@@ -1,7 +1,9 @@
 """CLI coverage for the read-only ACCU verification command (S4.1)."""
 
+import json
 from decimal import Decimal
 from io import StringIO
+from types import SimpleNamespace
 
 import pytest
 
@@ -72,8 +74,8 @@ def test_accu_verify_live_runs_with_mocked_provider(monkeypatch: pytest.MonkeyPa
         return HistoryResult(ticks=(), pages=0, discontinuities=0, ended_early=False)
 
     monkeypatch.setattr(
-        "devsoul_quant.adapters.deriv.otp.resolve_demo_url",
-        lambda *a, **k: "wss://api.derivws.com/trading/v1/options/ws/demo?otp=secret-otp",
+        "devsoul_quant.adapters.deriv.otp.DemoUrlResolver.__call__",
+        lambda self: "wss://api.derivws.com/trading/v1/options/ws/demo?otp=secret-otp",
     )
     monkeypatch.setattr(
         "devsoul_quant.adapters.deriv.accu_proposal.propose_accumulator", fake_propose
@@ -86,6 +88,31 @@ def test_accu_verify_live_runs_with_mocked_provider(monkeypatch: pytest.MonkeyPa
         stdout=output,
     )
 
+    payload = json.loads(output.getvalue())
     assert code == 0
-    assert '"classification"' in output.getvalue()
-    assert '"proposals": 1' in output.getvalue()
+    assert payload == {
+        "classification": "ACCU_PROXY_ONLY",
+        "provider_values_persisted": False,
+        "type": "final",
+    }
+
+
+def test_accu_verify_live_technical_block_is_nonzero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DEVSOUL_QUANT_DERIV_TOKEN", "synthetic-token")
+    monkeypatch.setenv("DEVSOUL_QUANT_DERIV_APP_ID", "synthetic-app")
+    monkeypatch.setattr(
+        "devsoul_quant.application.accu_verify.verify_accumulator",
+        lambda **kwargs: SimpleNamespace(classification="ACCU_TECHNICAL_BLOCKED"),
+    )
+    output = StringIO()
+
+    code = main(["accu-verify"], stdout=output)
+
+    assert code == 2
+    assert json.loads(output.getvalue()) == {
+        "classification": "ACCU_TECHNICAL_BLOCKED",
+        "provider_values_persisted": False,
+        "type": "final",
+    }

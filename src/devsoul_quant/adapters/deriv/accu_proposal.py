@@ -179,5 +179,5 @@ def propose_accumulator(
                 )
     except ProposalError:
         raise
-    except Exception as error:
-        raise ProposalError(f"demo websocket failed: {error}") from error
+    except Exception:
+        raise ProposalError("demo websocket failed") from None

@@ -92,6 +92,10 @@ def _candle_from(value: Mapping[str, Any]) -> Candle:
     open_q, high_q, low_q, close_q = quotes
     if high_q < low_q:
         raise CandlesError("Deriv candle high is below its low")
+    if not low_q <= open_q <= high_q:
+        raise CandlesError("Deriv candle open is outside its low/high range")
+    if not low_q <= close_q <= high_q:
+        raise CandlesError("Deriv candle close is outside its low/high range")
     return Candle(epoch=epoch, open=open_q, high=high_q, low=low_q, close=close_q)
 
 
@@ -149,8 +153,10 @@ def request_candles(
                 return CandlesPage(candles=parsed)
     except CandlesError:
         raise
-    except Exception as error:
-        raise CandlesError(f"demo websocket failed: {error}") from error
+    except Exception:
+        # Transport errors may include the authenticated OTP URL. Never surface
+        # provider exception text or preserve it as a chained traceback.
+        raise CandlesError("demo websocket failed") from None
 
 
 def fetch_candles(
@@ -175,9 +181,13 @@ def fetch_candles(
     end: str | int = "latest"
     ended_early = False
     while len(by_epoch) < total_count:
-        if deadline is not None and monotonic() >= deadline:
-            ended_early = True
-            break
+        request_timeout = request_timeout_seconds
+        if deadline is not None:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                ended_early = True
+                break
+            request_timeout = min(request_timeout_seconds, remaining)
         page = request_candles(
             resolve_url(),
             symbol,
@@ -185,14 +195,18 @@ def fetch_candles(
             count=min(total_count - len(by_epoch), MAX_PAGE_COUNT),
             end=end,
             connect=connect,
-            request_timeout_seconds=request_timeout_seconds,
+            request_timeout_seconds=request_timeout,
             monotonic=monotonic,
         )
         pages += 1
         if not page.candles:
             break
+        previous_count = len(by_epoch)
         for candle in page.candles:
             by_epoch.setdefault(candle.epoch, candle)
+        if len(by_epoch) == previous_count:
+            ended_early = True
+            break
         oldest = min(candle.epoch for candle in page.candles)
         if oldest <= 0:
             break

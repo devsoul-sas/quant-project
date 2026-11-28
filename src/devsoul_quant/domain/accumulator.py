@@ -31,9 +31,9 @@ class InvalidAccumulator(ValueError):
 class AccumulatorContract:
     """Provider-independent ACCU contract parameters for streak reconstruction.
 
-    ``barrier_fraction`` is the per-unit band (``tick_size_barrier``), e.g.
-    ``0.000483474879`` (~0.04835%) for R_100 at a 5% growth rate. ``maximum_ticks``
-    is the contract auto-settle cap and is *not* used for natural streak counting.
+    ``barrier_fraction`` is the positive per-unit band (``tick_size_barrier``).
+    ``maximum_ticks`` is the contract auto-settle cap and is *not* used for
+    natural streak counting.
     """
 
     symbol: str

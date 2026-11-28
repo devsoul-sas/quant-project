@@ -156,8 +156,8 @@ async def _collect_once(
         return received
     except DerivClientError:
         raise
-    except Exception as error:
-        raise DerivClientError(f"demo websocket failed: {error}") from error
+    except Exception:
+        raise DerivClientError("demo websocket failed") from None
     return received
 
 

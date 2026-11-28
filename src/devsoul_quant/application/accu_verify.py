@@ -25,7 +25,6 @@ from devsoul_quant.domain.accumulator import reconstruct_streaks, split_continuo
 
 _CLASSIFICATIONS = frozenset(
     {
-        "ACCU_RECONSTRUCTION_VERIFIED_FOR_OBSERVED_WINDOWS",
         "ACCU_RECONSTRUCTION_PARTIAL",
         "ACCU_PROXY_ONLY",
         "ACCU_TECHNICAL_BLOCKED",
@@ -76,6 +75,19 @@ def _max_cdf_gap(observed: Sequence[int], reconstructed: Sequence[int]) -> float
     return max(abs(observed_cdf(x) - reconstructed_cdf(x)) for x in support)
 
 
+def completed_fifo_snapshot(ticks_stayed_in: Sequence[int]) -> tuple[int, ...]:
+    """Return one non-overlapping provider snapshot, excluding its live tail.
+
+    Provider ``ticks_stayed_in`` is a rolling FIFO. Repeated proposals therefore
+    overlap and cannot be concatenated as independent samples. Its final element
+    is the current, right-censored streak and is excluded from completed-run
+    distribution comparisons.
+    """
+    if not ticks_stayed_in:
+        return ()
+    return tuple(ticks_stayed_in[:-1])
+
+
 def _classify(
     observed: Sequence[int],
     reconstructed: Sequence[int],
@@ -84,7 +96,7 @@ def _classify(
         return "ACCU_PROXY_ONLY", ("INSUFFICIENT_OBSERVATIONS",)
     gap = _max_cdf_gap(observed, reconstructed)
     if gap <= 0.15:
-        return "ACCU_RECONSTRUCTION_VERIFIED_FOR_OBSERVED_WINDOWS", ("STREAK_DISTRIBUTION_MATCHES",)
+        return "ACCU_RECONSTRUCTION_PARTIAL", ("DISTRIBUTIONAL_SIMILARITY_ONLY",)
     if gap <= 0.35:
         return "ACCU_RECONSTRUCTION_PARTIAL", ("PARTIAL_STREAK_CORRESPONDENCE",)
     return "ACCU_PROXY_ONLY", ("NO_RELIABLE_STREAK_CORRESPONDENCE",)
@@ -105,7 +117,7 @@ def verify_accumulator(
 ) -> AccuVerification:
     """Run the read-only ACCU reconstruction verification."""
     barrier_fractions: list[Decimal] = []
-    observed: list[int] = []
+    observed: tuple[int, ...] = ()
     proposals = 0
     for _ in range(max_proposals):
         try:
@@ -114,7 +126,9 @@ def verify_accumulator(
             break
         proposals += 1
         barrier_fractions.append(proposal.barrier_fraction)
-        observed.extend(proposal.ticks_stayed_in)
+        # Keep only the latest complete FIFO window. Concatenating snapshots
+        # pseudoreplicates their heavily overlapping completed histories.
+        observed = completed_fifo_snapshot(proposal.ticks_stayed_in)
 
     if not barrier_fractions:
         return AccuVerification(
@@ -144,7 +158,9 @@ def verify_accumulator(
 
     reconstructed: list[int] = []
     for segment in split_continuous_segments(history.ticks, cadence_seconds):
-        reconstructed.extend(streak.length for streak in reconstruct_streaks(segment, barrier))
+        reconstructed.extend(
+            streak.length for streak in reconstruct_streaks(segment, barrier) if streak.broke
+        )
 
     classification, reasons = _classify(observed, reconstructed)
     all_reasons = list(reasons)
